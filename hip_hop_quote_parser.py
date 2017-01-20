@@ -4,8 +4,9 @@ from enum import Enum
 from bs4 import NavigableString
 from bs4 import Tag
 
+NEWLINE_TAGS = ['br', 'p', 'div']
 QUOTES = '\'"“”’'
-ARTIST_PREFIXES = ['—', '--']
+ARTIST_PREFIXES = ['—', '--', '-']
 
 
 def filter_out_whitespace_strings(l):
@@ -21,29 +22,37 @@ def strip_quotes(string):
 
 
 class HipHopQuoteParser:
+    class Result:
+        SUCCESS = 0
+        NO_QUOTE = 1
+        UNKNOWN_FORMAT = 2
+
     class State(Enum):
+        # Extracts the part of post excerpt that contains the quote
         INITIAL = 1
 
-        FINAL = 2
+        UNPACK_QUOTE_LINES = 21
 
-        # We have a tag, extract it's content
-        STRIP_WRAPPING_TAG = 4
+        UNPACK_QUOTE_LINES_REMOVE_WRAPPING_TAG = 22
 
-        # We have multiple tags that together contain the string
-        PARSE_QUOTE_LINES = 6
+        UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE = 23
 
-        # Expects a list of strings corresponding to quote lines
-        # with last element being the last line of quote containing author and title
-        # The last element can be a list of strings (last line containing author and song title)
-        PROCESS_QUOTE = 7
+        PARSE_QUOTE_BODY = 24
 
-        SPLIT_LAST_LINE = 8
+        PARSE_LAST_LINE = 25
 
-        PROCESS_LAST_LINE = 9
+        SPLIT_LAST_LINE = 26
+
+        CLEAN_LAST_LINE = 27
+
+        PARSE_SONG_TITLE_AND_AUTHOR = 28
+
+        FINAL = 100
 
     def __init__(self):
         self.state = HipHopQuoteParser.State.INITIAL
         self.song_artist, self.song_title, self.song_quote = None, None, None
+        self.result = HipHopQuoteParser.Result.UNKNOWN_FORMAT
         self.data = None
 
     def _set_state(self, state):
@@ -59,94 +68,114 @@ class HipHopQuoteParser:
     def parse(self, post_excerpt_div):
         self.state = HipHopQuoteParser.State.INITIAL
         self.song_artist, self.song_title, self.song_quote = None, None, None
+        self.result = HipHopQuoteParser.Result.UNKNOWN_FORMAT
         self.data = post_excerpt_div
 
         while True:
             if self._in_state(HipHopQuoteParser.State.INITIAL):
                 block_quote = post_excerpt_div.blockquote
                 if block_quote:
-                    self.data = block_quote
-                    self._set_state(HipHopQuoteParser.State.STRIP_WRAPPING_TAG)
+                    self.data = filter_out_whitespace_strings(block_quote.contents)
+                    self._set_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES)
                 else:
                     self.song_artist, self.song_title, self.song_quote = 'Cake', 'is', 'lie'
                     self._set_state(HipHopQuoteParser.State.FINAL)
 
-            elif self._in_state(HipHopQuoteParser.State.STRIP_WRAPPING_TAG):
-                contents = self.data.contents
-                contents = filter_out_whitespace_strings(contents)
-                contents_count = len(contents)
-
-                if contents_count > 1:
-                    self.data = contents
-                    self._set_state(HipHopQuoteParser.State.PARSE_QUOTE_LINES)
-                elif contents_count == 1:
-                    self.data = contents[0]
-                    self._set_state(HipHopQuoteParser.State.STRIP_WRAPPING_TAG)
-                else:
-                    self._set_state(HipHopQuoteParser.State.FINAL)
-
-            elif self._in_state(HipHopQuoteParser.State.PARSE_QUOTE_LINES):
-                self.data = filter_out_whitespace_strings(self.data)
-
-                # In case quote is separated by <br> take those out and split into lines
-                while type(self.data[-1]) == Tag and self.data[-1].name == 'br':
-                    last_element_split = self.data[-1].contents
-                    contains_more_lines = False
-                    for element in last_element_split:
-                        if type(element) == Tag and element.name == 'br':
-                            contains_more_lines = True
-                            break
-                    if contains_more_lines:
-                        self.data = self.data[:-1] + self.data[-1].contents
-                    else:
-                        self.data = self.data[:-1]
-                        self.data.append(last_element_split
-                                                     if len(last_element_split) > 1 else last_element_split[0])
-
-                # Make all quote lines text
-                for i in range(len(self.data) - 1):
+            elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES):
+                for i in range(len(self.data)):
                     if type(self.data[i]) == Tag:
-                        self.data[i] = self.data[i].get_text()
+                        self.data[i] = filter_out_whitespace_strings(self.data[i].contents)
+                self.state = HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE
 
-                # Process the last line
-                last_line = self.data[-1]
-                # Strip all single tags wrapping the last line
-                while type(last_line) == Tag:
-                    last_line = last_line.contents
-                    last_line = filter_out_whitespace_strings(last_line)
-                    if len(last_line) == 1:
-                        last_line = last_line[0]
+            elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE):
+                any_line_split = False
+                for i in range(len(self.data) - 1, -1, -1):
+                    line = self.data[i]
+                    new_line_positions = []
+                    for j in range(len(line)):
+                        if type(line[j]) == Tag and line[j].name in NEWLINE_TAGS:
+                            new_line_positions.append(j)
+                    if len(new_line_positions) > 0:
+                        any_line_split = True
+                        new_line_positions.append(len(line))
+                        new_lines = []
+                        line_start = 0
+                        for new_line_position in new_line_positions:
+                            if new_line_position - line_start > 0:
+                                new_line = line[line_start:new_line_position]
+                                if len(new_line) == 1:
+                                    new_line = new_line[0]
+                                new_lines.append(new_line)
+                                line_start = new_line_position
+                        self.data = self.data[:i] + new_lines + self.data[i + 1:]
+                if any_line_split:
+                    self._set_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES)
+                else:
+                    self._set_state(HipHopQuoteParser.State.PARSE_QUOTE_BODY)
 
-                if not type(last_line) == NavigableString:
-                    # This means that last line is a collection
-                    last_line = [last_line_element if type(last_line_element) == NavigableString
-                                 else last_line_element.get_text()
-                                 for last_line_element in last_line]
-                self.data[-1] = last_line
-                self._set_state(HipHopQuoteParser.State.PROCESS_QUOTE)
+            elif self._in_state(HipHopQuoteParser.State.PARSE_QUOTE_BODY):
+                # Quote lines may possibly be lists of various things including tags so join them
+                for i in range(len(self.data) - 1):
+                    quote_line = self.data[i]
+                    if type(quote_line) == Tag:
+                        quote_line = quote_line.get_text()
+                    else:
+                        # This means it's collection of items
+                        # So make all of them strings
+                        for j in range(len(quote_line)):
+                            if type(quote_line[j]) == Tag:
+                                quote_line[j] = quote_line[j].get_text()
+                        # And now join them
+                        quote_line = ''.join(quote_line)
+                    self.data[i] = quote_line
 
-            elif self._in_state(HipHopQuoteParser.State.PROCESS_QUOTE):
                 quote_lines = self.data[:-1]
                 self.song_quote = '\n'.join(quote_lines)
+                self._set_state(HipHopQuoteParser.State.PARSE_LAST_LINE)
 
+            elif self._in_state(HipHopQuoteParser.State.PARSE_LAST_LINE):
                 last_line = self.data[-1]
+                # Convert all tags to text
+                last_line = [e.get_text() if type(e) == Tag else e for e in last_line]
+                # In case it's list with one string, just unwrap it
+                if not type(last_line) == Tag and not type(last_line) == NavigableString and len(last_line) == 1:
+                    last_line = self.data[-1][0]
+                self.data[-1] = last_line
+
                 if type(last_line) == NavigableString:
                     self._set_state(HipHopQuoteParser.State.SPLIT_LAST_LINE)
                 else:
-                    self._set_state(HipHopQuoteParser.State.PROCESS_LAST_LINE)
+                    self._set_state(HipHopQuoteParser.State.CLEAN_LAST_LINE)
 
             elif self._in_state(HipHopQuoteParser.State.SPLIT_LAST_LINE):
                 last_line = self.data[-1]
                 last_line_splits = last_line.split(', ')
                 if len(last_line_splits) == 2:
                     self.data[-1] = last_line_splits
-                    self._set_state(HipHopQuoteParser.State.PROCESS_LAST_LINE)
+                    self._set_state(HipHopQuoteParser.State.CLEAN_LAST_LINE)
                 else:
-                    # TODO error message
-                    print('%s not Hip Hop quote' % last_line)
+                    self._print_error('Last line: "%s" - not song lyrics quote' % last_line)
+                    self.result = HipHopQuoteParser.Result.NO_QUOTE
                     self._set_state(HipHopQuoteParser.State.FINAL)
 
-            elif self._in_state(HipHopQuoteParser.State.PROCESS_LAST_LINE):
+            elif self._in_state(HipHopQuoteParser.State.CLEAN_LAST_LINE):
+                # Remove quotes from all elements in the line and remove all empty strings
+                last_line = self.data[-1]
+                for i in range(len(last_line) - 1, -1, -1):
+                    if re.match('^[^0-9a-zA-Z]*$', last_line[i]):
+                        # Remove if element contains no letters or digits
+                        del last_line[i]
+                    else:
+                        # Or at least strip all quotes
+                        previous_element_length = -1
+                        element_length = len(last_line[i])
+                        while not element_length == previous_element_length:
+                            previous_element_length = element_length
+                            last_line[i] = strip_quotes(last_line[i])
+                            element_length = len(last_line[i])
+                self._set_state(HipHopQuoteParser.State.PARSE_SONG_TITLE_AND_AUTHOR)
+
+            elif self._in_state(HipHopQuoteParser.State.PARSE_SONG_TITLE_AND_AUTHOR):
                 last_line = self.data[-1]
                 if len(last_line) == 2:
                     self.song_artist = last_line[0].strip()
@@ -167,7 +196,6 @@ class HipHopQuoteParser:
 
             elif self._in_state(HipHopQuoteParser.State.FINAL):
                 if not self.song_artist or not self.song_title or not self.song_quote:
-                    print('Cannot parse quote (%s, %s, %s)' % (self.song_artist, self.song_title, self.song_quote))
-                    return None
+                    return [self.result]
                 else:
-                    return self.song_artist, self.song_title, self.song_quote
+                    return HipHopQuoteParser.Result.SUCCESS, self.song_artist, self.song_title, self.song_quote

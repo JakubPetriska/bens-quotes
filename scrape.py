@@ -7,8 +7,10 @@ from bs4 import BeautifulSoup
 
 from hip_hop_quote_parser import HipHopQuoteParser
 
-BLOG_BASE_URL = 'http://www.bhorowitz.com/'
-PAGE_URL = BLOG_BASE_URL + '?page=%s'
+# BLOG_BASE_URL = 'http://www.bhorowitz.com/'
+
+# TODO test only
+BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
 
 
 def parse_blog_page(page_html):
@@ -24,8 +26,9 @@ def parse_blog_page(page_html):
 
         quote_parser = HipHopQuoteParser()
         parsed_hip_hop_quote = quote_parser.parse(post_excerpt_div)
-        if parsed_hip_hop_quote:
-            song_artist, song_title, song_quote = parsed_hip_hop_quote
+        result = parsed_hip_hop_quote[0]
+        if result == HipHopQuoteParser.Result.SUCCESS:
+            song_artist, song_title, song_quote = parsed_hip_hop_quote[1:]
 
             post_name = post_excerpt_div.h3.a.string
 
@@ -34,7 +37,7 @@ def parse_blog_page(page_html):
 
             print('Success ' + str((song_artist, song_title, song_quote)))
             posts.append((post_date, post_url, post_name, song_artist, song_title, song_quote))
-        else:
+        elif result == HipHopQuoteParser.Result.UNKNOWN_FORMAT:
             print('Not able to parse the hip hop quote from post %s' % post_url)
             print('\tPost excerpt:')
             print(post_excerpt_div.prettify())
@@ -55,8 +58,7 @@ def scrape_posts():
     # We started at home (1st page) so all following are all that's needed
     # Also in case we want to start from some other page than 1st this allows us to only to that and all following pages
     for i in range(len(page_link_tags)):
-        tag_class = page_link_tags[i]['class']
-        if tag_class and tag_class[0] == 'active':
+        if 'class' in page_link_tags[i].attrs and page_link_tags[i]['class'] == 'active':
             page_link_tags = page_link_tags[i + 1:]
             break
     page_link_tags = list(filter(lambda tag: tag.a.string.isdigit(), page_link_tags))
