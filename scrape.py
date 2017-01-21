@@ -7,10 +7,7 @@ from bs4 import BeautifulSoup
 
 from hip_hop_quote_parser import HipHopQuoteParser
 
-# BLOG_BASE_URL = 'http://www.bhorowitz.com/'
-
-# TODO test only
-BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
+BLOG_BASE_URL = 'http://www.bhorowitz.com/'
 
 
 def parse_blog_page(page_html):
@@ -35,7 +32,7 @@ def parse_blog_page(page_html):
             post_date_string = post_excerpt_div.div.string.strip()
             post_date = datetime.datetime.strptime(post_date_string, '%B %d, %Y')
 
-            print('Success ' + str((song_artist, song_title, song_quote)))
+            print('Success ' + str((post_url, song_artist, song_title, song_quote)))
             posts.append((post_date, post_url, post_name, song_artist, song_title, song_quote))
         elif result == HipHopQuoteParser.Result.UNKNOWN_FORMAT:
             print('Not able to parse the hip hop quote from post %s' % post_url)
@@ -58,7 +55,7 @@ def scrape_posts():
     # We started at home (1st page) so all following are all that's needed
     # Also in case we want to start from some other page than 1st this allows us to only to that and all following pages
     for i in range(len(page_link_tags)):
-        if 'class' in page_link_tags[i].attrs and page_link_tags[i]['class'] == 'active':
+        if 'class' in page_link_tags[i].attrs and page_link_tags[i]['class'][0] == 'active':
             page_link_tags = page_link_tags[i + 1:]
             break
     page_link_tags = list(filter(lambda tag: tag.a.string.isdigit(), page_link_tags))
