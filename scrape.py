@@ -7,7 +7,8 @@ from bs4 import BeautifulSoup
 
 from hip_hop_quote_parser import HipHopQuoteParser
 
-BLOG_BASE_URL = 'http://www.bhorowitz.com/'
+# BLOG_BASE_URL = 'http://www.bhorowitz.com/'
+BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
 
 
 def parse_blog_page(page_html):
@@ -21,25 +22,23 @@ def parse_blog_page(page_html):
         post_url_relative = post_excerpt_div.h3.a['href']
         post_url = BLOG_BASE_URL + post_url_relative[1:] if post_url_relative.startswith('/') else post_url_relative
 
+        post_name = post_excerpt_div.h3.a.string
+
         quote_parser = HipHopQuoteParser()
-        parsed_hip_hop_quote = quote_parser.parse(post_excerpt_div)
+        parsed_hip_hop_quote = quote_parser.parse(post_name, post_excerpt_div)
         result = parsed_hip_hop_quote[0]
         if result == HipHopQuoteParser.Result.SUCCESS:
             song_artist, song_title, song_quote = parsed_hip_hop_quote[1:]
 
-            post_name = post_excerpt_div.h3.a.string
-
             post_date_string = post_excerpt_div.div.string.strip()
             post_date = datetime.datetime.strptime(post_date_string, '%B %d, %Y')
 
-            print('Success ' + str((post_url, song_artist, song_title, song_quote)))
             posts.append((post_date, post_url, post_name, song_artist, song_title, song_quote))
         elif result == HipHopQuoteParser.Result.UNKNOWN_FORMAT:
             print('Not able to parse the hip hop quote from post %s' % post_url)
             print('\tPost excerpt:')
             print(post_excerpt_div.prettify())
             sys.exit(1)
-
     return posts
 
 
@@ -75,4 +74,7 @@ def scrape_posts():
 
 
 if __name__ == "__main__":
-    print(scrape_posts())
+    scraped_posts = scrape_posts()
+    for scraped_post in scraped_posts:
+        post_date, post_url, post_name, song_artist, song_title, song_quote = scraped_post
+        print('%s (%s):\n\t/%s/%s/%s/' % (post_name, post_url, song_artist, song_title, song_quote))

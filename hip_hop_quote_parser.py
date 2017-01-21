@@ -1,22 +1,24 @@
 import re
 from enum import Enum
 
+from bs4 import Comment
 from bs4 import NavigableString
 from bs4 import Tag
 
 NEWLINE_TAGS = ['br', 'p', 'div']
-QUOTES = '\'"“”’'
-ARTIST_PREFIXES = ['—', '--', '-']
+QUOTATION_MARKS = '\'"“”’'
+AUTHOR_PREFIXES = ['—', '--', '-']
 
 
-def filter_out_whitespace_strings(l):
-    return list(filter(lambda i: False if type(i) == NavigableString and not i.strip() else True, l))
+def filter_out_empty_elements(l):
+    """Filters out strings containing only whitespace, empty strings and empty arrays."""
+    return list(filter(lambda i: i.strip() if type(i) == NavigableString else i, l))
 
 
 def strip_quotes(string):
-    while re.match('^[%s]{1}.*' % QUOTES, string):
+    while re.match('^[%s]{1}.*' % QUOTATION_MARKS, string):
         string = string[1:]
-    while re.match('.*[%s]{1}$' % QUOTES, string):
+    while re.match('.*[%s]{1}$' % QUOTATION_MARKS, string):
         string = string[:-1]
     return string
 
@@ -30,7 +32,7 @@ class HipHopQuoteParser:
     class State(Enum):
         INITIAL = 1
 
-        REMOVE_NON_QUOTE_CONTENT = 10
+        CUT_OUT_QUOTE_CONTENT = 10
 
         UNPACK_QUOTE_LINES = 21
 
@@ -38,11 +40,13 @@ class HipHopQuoteParser:
 
         UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE = 23
 
-        PARSE_QUOTE_BODY = 24
+        TRIM_NON_QUOTE_CONTENT = 24
 
-        PARSE_LAST_LINE = 25
+        PARSE_QUOTE_BODY = 25
 
-        SPLIT_LAST_LINE = 26
+        PARSE_LAST_LINE = 26
+
+        SPLIT_LAST_LINE = 27
 
         PARSE_SONG_TITLE_AND_AUTHOR = 28
 
@@ -53,6 +57,7 @@ class HipHopQuoteParser:
         self.song_artist, self.song_title, self.song_quote = None, None, None
         self.result = HipHopQuoteParser.Result.UNKNOWN_FORMAT
         self.data = None
+        self.post_name = None
 
     def _set_state(self, state):
         self.state = state
@@ -60,36 +65,54 @@ class HipHopQuoteParser:
     def _in_state(self, state):
         return self.state == state
 
-    def _print_error(self, reason):
-        print('Error - %s' % reason)
-        print('\tState: %s, data: %s' % (self.state, self.data))
+    def _print_error(self, reason, print_data=False):
+        print('Error - "%s" while parsing post "%s"' % (reason, self.post_name))
+        if print_data:
+            print('\tState: %s, data: %s' % (self.state, self.data))
+        else:
+            print('\tState: %s' % self.state)
 
-    def parse(self, post_excerpt_div):
+    def parse(self, post_name, post_excerpt_div):
         self.state = HipHopQuoteParser.State.INITIAL
         self.song_artist, self.song_title, self.song_quote = None, None, None
         self.result = HipHopQuoteParser.Result.UNKNOWN_FORMAT
+        self.post_name = post_name
         self.data = post_excerpt_div
 
         while True:
             if self._in_state(HipHopQuoteParser.State.INITIAL):
-                block_quote = post_excerpt_div.blockquote
+                block_quote = self.data.blockquote
                 if block_quote:
-                    # Often the quote is wrapped in <blockquote> tag, this is the case. Jackpot!
-                    self.data = filter_out_whitespace_strings(block_quote.contents)
+                    # Often the quote is wrapped in <blockquote> tag
+                    # If yes we'll just work with content of the blockquote
+                    self.data = filter_out_empty_elements(block_quote.contents)
                     self._set_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES)
                 else:
-                    self._set_state(HipHopQuoteParser.State.REMOVE_NON_QUOTE_CONTENT)
+                    self.data = filter_out_empty_elements(self.data.contents)
+                    self._set_state(HipHopQuoteParser.State.CUT_OUT_QUOTE_CONTENT)
 
-            elif self._in_state(HipHopQuoteParser.State.REMOVE_NON_QUOTE_CONTENT):
-                # self.data = filter_out_whitespace_strings(self.data.contents)
-                # for i in range(len(self.data) - 1, -1, -1):
-                self.song_artist, self.song_title, self.song_quote = 'Cake', 'is', 'lie'
-                self._set_state(HipHopQuoteParser.State.FINAL)
+            elif self._in_state(HipHopQuoteParser.State.CUT_OUT_QUOTE_CONTENT):
+                # Remove all tags that obviously do not contain the quote (headers, etc..) and comments
+                for i in reversed(range(len(self.data))):
+                    element = self.data[i]
+                    if not element \
+                            or (type(element) == Tag
+                                and (not element.get_text().strip()
+                                     or not (element.name == 'div' or element.name == 'p')
+                                     or ('class' in element.attrs
+                                         and ('byline' in element['class']
+                                              or 'sharetable' in element['class']
+                                              or 'button' in element['class'])))) \
+                            or type(element) == Comment:
+                        del self.data[i]
+                self._set_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES)
 
             elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES):
-                for i in range(len(self.data)):
+                for i in reversed(range(len(self.data))):
                     if type(self.data[i]) == Tag:
-                        self.data[i] = filter_out_whitespace_strings(self.data[i].contents)
+                        self.data[i] = filter_out_empty_elements(self.data[i].contents)
+                        if not self.data[i]:
+                            del self.data[i]
                 self.state = HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE
 
             elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE):
@@ -108,6 +131,8 @@ class HipHopQuoteParser:
                         for new_line_position in new_line_positions:
                             if new_line_position - line_start > 0:
                                 new_line = line[line_start:new_line_position]
+                                if type(new_line) == list and type(new_line[0]) == Tag:
+                                    new_line = filter_out_empty_elements(new_line[0].contents) + new_line[1:]
                                 if len(new_line) == 1:
                                     new_line = new_line[0]
                                 new_lines.append(new_line)
@@ -116,7 +141,47 @@ class HipHopQuoteParser:
                 if any_line_split:
                     self._set_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES)
                 else:
-                    self._set_state(HipHopQuoteParser.State.PARSE_QUOTE_BODY)
+                    self._set_state(HipHopQuoteParser.State.TRIM_NON_QUOTE_CONTENT)
+
+            elif self._in_state(HipHopQuoteParser.State.TRIM_NON_QUOTE_CONTENT):
+                # Sometimes stuff before and after the quote is still left in data, remove it now
+                # Find the line with quote author and delete everything below it
+                author_line_index = -1
+                for i in reversed(range(len(self.data))):
+                    element = self.data[i][0]
+                    element_string = element.get_text() if type(element) == Tag else str(element)
+                    for author_prefix in AUTHOR_PREFIXES:
+                        if element_string.strip().startswith(author_prefix):
+                            self.data = self.data[:i + 1]
+                            author_line_index = i
+                            break
+                    if author_line_index != -1:
+                        break
+                if author_line_index == -1:
+                    # There is no author, so there's no quote
+                    self._print_error('No author found - no quote in this post')
+                    self.result = HipHopQuoteParser.Result.NO_QUOTE
+                    self._set_state(HipHopQuoteParser.State.FINAL)
+                else:
+                    # Quote often starts with quotation mark
+                    # If we find a line starting with quotation mark it's the start of the quote
+                    for i in range(len(self.data)):
+                        element = self.data[i][0]
+                        element_string = element.get_text() if type(element) == Tag else str(element)
+                        for quotation_mark in QUOTATION_MARKS:
+                            if element_string.strip().startswith(quotation_mark):
+                                self.data = self.data[i:]
+                                element = None
+                                break
+                        if not element:
+                            break
+
+                    if len(self.data) > 0:
+                        self._set_state(HipHopQuoteParser.State.PARSE_QUOTE_BODY)
+                    else:
+                        self._print_error('No quote in this post')
+                        self.result = HipHopQuoteParser.Result.NO_QUOTE
+                        self._set_state(HipHopQuoteParser.State.FINAL)
 
             elif self._in_state(HipHopQuoteParser.State.PARSE_QUOTE_BODY):
                 # Quote lines may possibly be lists of various things including tags so join them
@@ -140,8 +205,11 @@ class HipHopQuoteParser:
 
             elif self._in_state(HipHopQuoteParser.State.PARSE_LAST_LINE):
                 last_line = self.data[-1]
-                # Convert all tags to text
-                last_line = [e.get_text() if type(e) == Tag else e for e in last_line]
+                if type(last_line) == NavigableString:
+                    last_line = [last_line]
+                else:
+                    # Convert all tags to text
+                    last_line = [e.get_text() if type(e) == Tag else e for e in last_line]
 
                 # Remove quotes from all elements in the line and remove all empty strings
                 for i in reversed(range(len(last_line))):
@@ -184,7 +252,7 @@ class HipHopQuoteParser:
                     self.song_artist = last_line[0].strip()
                     if self.song_artist.endswith(','):
                         self.song_artist = self.song_artist[:-1]
-                    for artist_prefix in ARTIST_PREFIXES:
+                    for artist_prefix in AUTHOR_PREFIXES:
                         if self.song_artist.startswith(artist_prefix):
                             self.song_artist = self.song_artist[len(artist_prefix):]
                             break
@@ -201,4 +269,5 @@ class HipHopQuoteParser:
                 if not self.song_artist or not self.song_title or not self.song_quote:
                     return [self.result]
                 else:
-                    return HipHopQuoteParser.Result.SUCCESS, self.song_artist, self.song_title, self.song_quote
+                    return HipHopQuoteParser.Result.SUCCESS, self.song_artist.strip(), \
+                           self.song_title.strip(), self.song_quote.strip()
