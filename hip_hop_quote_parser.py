@@ -81,7 +81,26 @@ class HipHopQuoteParser:
 
         while True:
             if self._in_state(HipHopQuoteParser.State.INITIAL):
-                block_quote = self.data.blockquote
+                # First we try to find if the post begins with blockquote at the beginning
+                # If yeas the quote is in it
+                block_quote = None
+                contents = filter_out_empty_elements(self.data.contents)
+                for i in reversed(range(len(contents))):
+                    if type(contents[i]) == Comment:
+                        del contents[i]
+                for i in range(len(contents)):
+                    if type(contents[i]) == Tag and contents[i].name == 'blockquote' \
+                            and ((i > 0 and type(contents[i - 1]) == Tag
+                                  and 'class' in contents[i - 1].attrs and 'sharetable' in contents[i - 1]['class'])
+                                 or (i > 1 and type(contents[i - 1]) == Tag
+                                  and 'class' in contents[i - 2].attrs and 'sharetable' in contents[i - 2]['class'])):
+                        # Either blockquote needs to be directly below share table or there is one tag
+                        # between it and share table
+                        block_quote = contents[i]
+
+                if post_name == 'Estonia: The Little Country That Cloud':
+                    s = ''
+
                 if block_quote:
                     # Often the quote is wrapped in <blockquote> tag
                     # If yes we'll just work with content of the blockquote
@@ -108,12 +127,19 @@ class HipHopQuoteParser:
                 self._set_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES)
 
             elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES):
+                any_line_unpacked = False
                 for i in reversed(range(len(self.data))):
                     if type(self.data[i]) == Tag:
                         self.data[i] = filter_out_empty_elements(self.data[i].contents)
-                        if not self.data[i]:
-                            del self.data[i]
-                self.state = HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE
+                        any_line_unpacked = True
+                    elif type(self.data[i]) == list and len(self.data[i]) == 1 and type(self.data[i][0]) == Tag:
+                        self.data[i] = filter_out_empty_elements(self.data[i][0].contents)
+                        any_line_unpacked = True
+                self.data = filter_out_empty_elements(self.data)
+                if any_line_unpacked:
+                    self.state = HipHopQuoteParser.State.UNPACK_QUOTE_LINES
+                else:
+                    self.state = HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE
 
             elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE):
                 any_line_split = False
@@ -147,7 +173,7 @@ class HipHopQuoteParser:
                 # Sometimes stuff before and after the quote is still left in data, remove it now
                 # Find the line with quote author and delete everything below it
                 author_line_index = -1
-                for i in reversed(range(len(self.data))):
+                for i in range(len(self.data)):
                     element = self.data[i][0]
                     element_string = element.get_text() if type(element) == Tag else str(element)
                     for author_prefix in AUTHOR_PREFIXES:

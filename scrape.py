@@ -7,8 +7,8 @@ from bs4 import BeautifulSoup
 
 from hip_hop_quote_parser import HipHopQuoteParser
 
-# BLOG_BASE_URL = 'http://www.bhorowitz.com/'
-BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
+BLOG_BASE_URL = 'http://www.bhorowitz.com/'
+# BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
 
 
 def parse_blog_page(page_html):
@@ -39,7 +39,7 @@ def parse_blog_page(page_html):
             print('\tPost excerpt:')
             print(post_excerpt_div.prettify())
             sys.exit(1)
-    return posts
+    return posts, len(post_excerpt_divs)
 
 
 def scrape_posts():
@@ -61,20 +61,26 @@ def scrape_posts():
     page_links = [page_link_tag.a['href'] for page_link_tag in page_link_tags]
 
     # Parse the first page
+    total_post_count = 0
     posts = []
-    posts.extend(parse_blog_page(main_page_html))
+    parsed_posts, page_posts_count = parse_blog_page(main_page_html)
+    posts.extend(parsed_posts)
+    total_post_count += page_posts_count
 
     # Download and parse the rest of the pages
     for page_link in page_links:
         response = urllib.request.urlopen(page_link)
         page_html = response.read()
-        posts.extend(parse_blog_page(page_html))
+        parsed_posts, page_posts_count = parse_blog_page(page_html)
+        posts.extend(parsed_posts)
+        total_post_count += page_posts_count
 
-    return posts
+    return posts, total_post_count
 
 
 if __name__ == "__main__":
-    scraped_posts = scrape_posts()
+    scraped_posts, post_count = scrape_posts()
     for scraped_post in scraped_posts:
         post_date, post_url, post_name, song_artist, song_title, song_quote = scraped_post
         print('%s (%s):\n\t/%s/%s/%s/' % (post_name, post_url, song_artist, song_title, song_quote))
+    print('\nParsed %s/%s posts %.01f%%' % (len(scraped_posts), post_count, len(scraped_posts) / post_count))
