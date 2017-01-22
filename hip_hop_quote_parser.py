@@ -7,7 +7,7 @@ from bs4 import Tag
 
 NEWLINE_TAGS = ['br', 'p', 'div']
 QUOTATION_MARKS = '\'"“”’'
-AUTHOR_PREFIXES = ['—', '--', '-']
+AUTHOR_PREFIXES = ['—', '–', '--', '-']
 
 
 def filter_out_empty_elements(l):
@@ -98,7 +98,7 @@ class HipHopQuoteParser:
                         # between it and share table
                         block_quote = contents[i]
 
-                if post_name == 'Estonia: The Little Country That Cloud':
+                if post_name == 'Can Do vs. Can’t Do Cultures':
                     s = ''
 
                 if block_quote:
@@ -127,6 +127,9 @@ class HipHopQuoteParser:
                 self._set_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES)
 
             elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES):
+                # If whole lines are wrapped in tags then unwrap them
+                # Lines are unwrapped only if line is a tag or list containing one tag
+                # Repeat this until anything gets unwrapped
                 any_line_unpacked = False
                 for i in reversed(range(len(self.data))):
                     if type(self.data[i]) == Tag:
@@ -142,6 +145,8 @@ class HipHopQuoteParser:
                     self.state = HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE
 
             elif self._in_state(HipHopQuoteParser.State.UNPACK_QUOTE_LINES_SPLIT_BY_NEWLINE):
+                # The data contain lines of the input
+                # In case some of the lines contains tag that visually splits it into two lines, split the lines in data
                 any_line_split = False
                 for i in reversed(range(len(self.data))):
                     line = self.data[i]
@@ -174,7 +179,7 @@ class HipHopQuoteParser:
                 # Find the line with quote author and delete everything below it
                 author_line_index = -1
                 for i in range(len(self.data)):
-                    element = self.data[i][0]
+                    element = self.data[i][0] if type(self.data[i]) == list else self.data[i]
                     element_string = element.get_text() if type(element) == Tag else str(element)
                     for author_prefix in AUTHOR_PREFIXES:
                         if element_string.strip().startswith(author_prefix):
