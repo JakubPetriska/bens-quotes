@@ -5,7 +5,7 @@ import urllib.request
 
 from bs4 import BeautifulSoup
 
-from hip_hop_quote_parser import HipHopQuoteParser
+from hip_hop_quote_parser import QuoteParser
 
 BLOG_BASE_URL = 'http://www.bhorowitz.com/'
 # BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
@@ -32,7 +32,7 @@ def parse_blog_page(page_html):
         post_id += 1
         posts.append((post_id, post_date, post_url, post_name))
 
-        quote_parser = HipHopQuoteParser()
+        quote_parser = QuoteParser()
         parsed_quotes = quote_parser.parse(post_name, post_excerpt_div)
         quotes.extend([(post_id, quote, author, song_title) for quote, author, song_title in parsed_quotes])
     return posts, quotes
