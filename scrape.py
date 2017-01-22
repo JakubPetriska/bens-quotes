@@ -17,29 +17,25 @@ def parse_blog_page(page_html):
 
     soup = BeautifulSoup(page_html, 'html.parser')
     post_excerpt_divs = soup.find_all('div', class_='page-excerpt')
+    post_id = 0
     posts = []
+    quotes = []
     for post_excerpt_div in post_excerpt_divs:
+        post_date_string = post_excerpt_div.div.string.strip()
+        post_date = datetime.datetime.strptime(post_date_string, '%B %d, %Y')
+
         post_url_relative = post_excerpt_div.h3.a['href']
         post_url = BLOG_BASE_URL + post_url_relative[1:] if post_url_relative.startswith('/') else post_url_relative
 
         post_name = post_excerpt_div.h3.a.string
 
+        post_id += 1
+        posts.append((post_id, post_date, post_url, post_name))
+
         quote_parser = HipHopQuoteParser()
-        parsed_hip_hop_quote = quote_parser.parse(post_name, post_excerpt_div)
-        result = parsed_hip_hop_quote[0]
-        if result == HipHopQuoteParser.Result.SUCCESS:
-            song_artist, song_title, song_quote = parsed_hip_hop_quote[1:]
-
-            post_date_string = post_excerpt_div.div.string.strip()
-            post_date = datetime.datetime.strptime(post_date_string, '%B %d, %Y')
-
-            posts.append((post_date, post_url, post_name, song_artist, song_title, song_quote))
-        elif result == HipHopQuoteParser.Result.UNKNOWN_FORMAT:
-            print('Not able to parse the hip hop quote from post %s' % post_url)
-            print('\tPost excerpt:')
-            print(post_excerpt_div.prettify())
-            sys.exit(1)
-    return posts, len(post_excerpt_divs)
+        parsed_quotes = quote_parser.parse(post_name, post_excerpt_div)
+        quotes.extend([(post_id, quote, author, song_title) for quote, author, song_title in parsed_quotes])
+    return posts, quotes
 
 
 def scrape_posts():
@@ -60,27 +56,41 @@ def scrape_posts():
     page_link_tags = list(filter(lambda tag: tag.a.string.isdigit(), page_link_tags))
     page_links = [page_link_tag.a['href'] for page_link_tag in page_link_tags]
 
-    # Parse the first page
-    total_post_count = 0
     posts = []
-    parsed_posts, page_posts_count = parse_blog_page(main_page_html)
-    posts.extend(parsed_posts)
-    total_post_count += page_posts_count
+    quotes = []
+
+    # Parse the first page
+    new_posts, new_quotes = parse_blog_page(main_page_html)
+    posts.extend(new_posts)
+    quotes.extend(new_quotes)
 
     # Download and parse the rest of the pages
     for page_link in page_links:
         response = urllib.request.urlopen(page_link)
         page_html = response.read()
-        parsed_posts, page_posts_count = parse_blog_page(page_html)
-        posts.extend(parsed_posts)
-        total_post_count += page_posts_count
-
-    return posts, total_post_count
+        new_posts, new_quotes = parse_blog_page(page_html)
+        posts.extend(new_posts)
+        quotes.extend(new_quotes)
+    return posts, quotes
 
 
 if __name__ == "__main__":
-    scraped_posts, post_count = scrape_posts()
-    for scraped_post in scraped_posts:
-        post_date, post_url, post_name, song_artist, song_title, song_quote = scraped_post
-        print('%s (%s):\n\t/%s/%s/%s/' % (post_name, post_url, song_artist, song_title, song_quote))
-    print('\nParsed %s/%s posts %.01f%%' % (len(scraped_posts), post_count, len(scraped_posts) / post_count))
+    posts, quotes = scrape_posts()
+    last_post_name = None
+    last_post_quote_count = 0
+    for quote in quotes:
+        post_id, quote, author, song_title = quote
+        post_id, post_date, post_url, post_name = posts[post_id - 1]
+
+        if post_name != last_post_name and last_post_name:
+            print('%s:\t%s' % (last_post_quote_count, last_post_name))
+            last_post_quote_count = 0
+            last_post_name = post_name
+        last_post_quote_count += 1
+
+    for quote in quotes:
+        post_id, quote, author, song_title = quote
+        post_id, post_date, post_url, post_name = posts[post_id - 1]
+        print('%s (%s):\n\t/%s/%s/%s/' % (post_name, post_url, author, song_title, quote.replace('\n', ' ')))
+
+    print('\nTotal posts: %s, total quotes:%s' % (len(posts), len(quotes)))
