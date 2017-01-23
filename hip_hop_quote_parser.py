@@ -7,7 +7,7 @@ from bs4 import Tag
 
 NEWLINE_TAGS = ['br', 'p', 'div']
 QUOTATION_MARKS = '\'"’“”'
-AUTHOR_PREFIXES = ['—', '–', '-', '-- ']
+AUTHOR_PREFIXES = ['—', '–', '-', '-- ', '\\\\-- ']
 
 MARKDOWN_ITALICS_REGEX = '^_.*_$'
 
@@ -20,14 +20,20 @@ def _convert_html2text(html_tag):
 
 # Matches the start of author line
 # Works for text directly obtained from Tags and for text from html2text.
-AUTHOR_LINE_START_REGEX = '^\s*>?\s*(%s)' % '|' \
-    .join(AUTHOR_PREFIXES + [_convert_html2text(prefix).strip() for prefix in AUTHOR_PREFIXES])
+AUTHOR_LINE_START_REGEX = '^\s*>?\s*(%s)' % '|'.join(AUTHOR_PREFIXES)
 
 
 def _is_unwanted_content(e):
     if isinstance(e, Comment):
         return False
+    elif isinstance(e, Tag) \
+            and (re.match('^h[1-9]', e.name)
+                 or ('class' in e.attrs and 'byline' in e['class'])
+                 or ('class' in e.attrs and 'sharetable' in e['class'])):
+        # Unwanted tag known to not be a part of the quote
+        return False
     elif isinstance(e, Tag) and not e.get_text().strip():
+        # Tag with empty content
         return False
     else:
         return e.strip() if isinstance(e, str) else e
@@ -75,7 +81,7 @@ class QuoteParser:
     class State(Enum):
         INITIAL = 1
 
-        CLEANUP_DATA = 10
+        FILTER_DATA = 10
 
         # Following states gather blocks from the input data that contain the quotes, e.g. their last line
         # starts with the dash or similar character which indicates quote end.
@@ -118,23 +124,12 @@ class QuoteParser:
         self.quote_blocks = []
         self.parsed_quotes = []
 
-        if post_name == 'The Case for the Fat Startup':
-            s = ''
-
         while True:
             if self._in_state(QuoteParser.State.INITIAL):
                 self._set_state(QuoteParser.State.GATHER_QUOTE_BLOCKS)
 
-            if self._in_state(QuoteParser.State.CLEANUP_DATA):
-                new_data = []
-                for item in self.data:
-                    if not (isinstance(item, Comment)
-                            or (isinstance(item, Tag)
-                                and (re.match('^h[1-9]', item.name)
-                                     or ('class' in item.attrs and 'byline' in item['class'])
-                                     or ('class' in item.attrs and 'sharetable' in item['class'])))):
-                        new_data.append(item)
-                self.data = new_data
+            if self._in_state(QuoteParser.State.FILTER_DATA):
+                self.data = _filter_content(self.data)
                 self._set_state(QuoteParser.State.GATHER_QUOTE_BLOCKS)
 
             if self._in_state(QuoteParser.State.GATHER_QUOTE_BLOCKS):
@@ -166,7 +161,7 @@ class QuoteParser:
                                 break
                 self.data = new_data
                 if self.data:
-                    self._set_state(QuoteParser.State.CLEANUP_DATA)
+                    self._set_state(QuoteParser.State.FILTER_DATA)
                 else:
                     self._set_state(QuoteParser.State.CUT_NON_QUOTE_RELATED_DATA_FROM_QUOTE_BLOCKS)
 

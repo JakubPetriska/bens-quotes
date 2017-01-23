@@ -11,8 +11,8 @@ from hip_hop_quote_parser import QuoteParser
 POSTS_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-posts.csv')
 QUOTES_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-quotes.csv')
 
-# BLOG_BASE_URL = 'http://www.bhorowitz.com/'
-BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=11'
+BLOG_BASE_URL = 'http://www.bhorowitz.com/'
+# BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=11'
 
 
 def parse_blog_page(page_html, post_id_offset=0):
