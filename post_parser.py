@@ -24,6 +24,7 @@ AUTHOR_LINE_START_REGEX = '^\s*>?\s*(%s)' % '|'.join(AUTHOR_PREFIXES)
 
 
 def _is_unwanted_content(e):
+    """Decides whether given element is part of the quote or not."""
     if isinstance(e, Comment):
         return False
     elif isinstance(e, Tag) \
@@ -78,6 +79,7 @@ def _strip_markdown_italics(string):
 
 
 class PostParser:
+    """Parser that accepts beautifulsoup Tag object and collects all quotes from it."""
     class State(Enum):
         INITIAL = 1
 
@@ -116,11 +118,17 @@ class PostParser:
         else:
             print('\tState: %s' % self.state)
 
-    def parse(self, post_name, post_excerpt_div):
+    def parse(self, post_name, post_tag):
+        """Parse beautifulsoup Tag and collect all it's quotes.
+
+        :param post_name: Name of the post for identification in logs.
+        :param post_tag: beautifulsoup Tag containg the excerpt of the post.
+        :return: The parsed quotes.
+        """
         self.state = PostParser.State.INITIAL
 
         self.post_name = post_name
-        self.data = [post_excerpt_div]
+        self.data = [post_tag]
         self.quote_blocks = []
         self.parsed_quotes = []
 
