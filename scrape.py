@@ -86,17 +86,20 @@ def scrape_posts():
 
 if __name__ == "__main__":
     posts, quotes = scrape_posts()
-    last_post_name = None
-    last_post_quote_count = 0
-    for quote in quotes:
-        post_id, quote, author, song_title = quote
-        post_id, post_date, post_url, post_name = posts[post_id - 1]
 
-        if post_name != last_post_name and last_post_name:
-            print('%s:\t%s' % (last_post_quote_count, last_post_name))
-            last_post_quote_count = 0
-            last_post_name = post_name
-        last_post_quote_count += 1
+    quotes_index = 0
+    for post in posts:
+        post_id, post_date, post_url, post_name = post
+
+        post_quotes_count = 0
+        while quotes_index < len(quotes):
+            quote_post_id, quote, author, song_title = quotes[quotes_index]
+            if quote_post_id == post_id:
+                post_quotes_count += 1
+                quotes_index += 1
+            else:
+                break
+        print('%s:\t%s' % (post_quotes_count, post_name))
 
     for quote in quotes:
         post_id, quote, author, song_title = quote
