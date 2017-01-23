@@ -6,10 +6,22 @@ from bs4 import Comment
 from bs4 import Tag
 
 NEWLINE_TAGS = ['br', 'p', 'div']
-QUOTATION_MARKS = '\'"“”’'
-AUTHOR_PREFIXES = ['—', '–', '-', '\\\\-- ']
+QUOTATION_MARKS = '\'"’“”'
+AUTHOR_PREFIXES = ['—', '–', '-', '-- ']
 
-AUTHOR_LINE_REGEX = '^\s*>?\s*(%s)' % '|'.join(AUTHOR_PREFIXES)
+MARKDOWN_ITALICS_REGEX = '^_.*_$'
+
+
+def _convert_html2text(html_tag):
+    h = html2text.HTML2Text()
+    h.ignore_links = True
+    return h.handle(str(html_tag))
+
+
+# Matches the start of author line
+# Works for text directly obtained from Tags and for text from html2text.
+AUTHOR_LINE_START_REGEX = '^\s*>?\s*(%s)' % '|' \
+    .join(AUTHOR_PREFIXES + [_convert_html2text(prefix).strip() for prefix in AUTHOR_PREFIXES])
 
 
 def _is_unwanted_content(e):
@@ -28,14 +40,22 @@ def _filter_content(l):
     return list(filter(lambda e: _is_unwanted_content(e), l))
 
 
+def _starts_with_quote(string):
+    return re.match('^[%s]{1}.*' % QUOTATION_MARKS, string)
+
+
 def _strip_quotes_beginning(string):
-    while re.match('^[%s]{1}.*' % QUOTATION_MARKS, string):
+    while _starts_with_quote(string):
         string = string[1:]
     return string
 
 
+def _ends_with_quote(string):
+    return re.match('.*[%s]{1}$' % QUOTATION_MARKS, string)
+
+
 def _strip_quotes_end(string):
-    while re.match('.*[%s]{1}$' % QUOTATION_MARKS, string):
+    while _ends_with_quote(string):
         string = string[:-1]
     return string
 
@@ -44,10 +64,11 @@ def _strip_quotes(string):
     return _strip_quotes_beginning(_strip_quotes_end(string))
 
 
-def _convert_html2text(html_tag):
-    h = html2text.HTML2Text()
-    h.ignore_links = True
-    return h.handle(str(html_tag))
+def _strip_markdown_italics(string):
+    if re.match(MARKDOWN_ITALICS_REGEX, string):
+        return string[1:-1]
+    else:
+        return string
 
 
 class QuoteParser:
@@ -125,7 +146,7 @@ class QuoteParser:
                     text_lines = list(filter(lambda text_line: text_line.strip(), text_lines))
                     for line_index in range(len(text_lines)):
                         text_line = text_lines[line_index]
-                        if re.match(AUTHOR_LINE_REGEX, text_line):
+                        if re.match(AUTHOR_LINE_START_REGEX, text_line):
                             # Line contains quote author
                             if line_index == (len(text_lines) - 1):
                                 # The line is last in this item, so the block is complete quote
@@ -150,8 +171,56 @@ class QuoteParser:
                 self._set_state(QuoteParser.State.PARSE_QUOTE)
 
             elif self._in_state(QuoteParser.State.PARSE_QUOTE):
-                # TODO
-                self._set_state(QuoteParser.State.FINAL)
+                if len(self.quote_blocks) > 0:
+                    quote_block = self.quote_blocks[0]
+                    self.quote_blocks = self.quote_blocks[1:]
+                    # Items are either strings or tags
+                    # Split the whole block so that it's items represent individual lines of the quote
+                    for i in reversed(range(len(quote_block))):
+                        quote_block_item = quote_block[i]
+                        if not isinstance(quote_block_item, str):
+                            quote_block_item = _convert_html2text(str(quote_block_item))
+                        quote_block_item_splits = quote_block_item.split('\n')
+                        quote_block_item_splits = list(filter(lambda split: split.strip(), quote_block_item_splits))
+                        quote_block = quote_block[:i] + quote_block_item_splits + quote_block[i + 1:]
+
+                    # In case the quote is wrapped in <blockquote> we need to strip the quote signs from line beginnings
+                    for i in reversed(range(len(quote_block))):
+                        line = quote_block[i]
+                        m = re.match('^\s*>\s*', line)
+                        if m:
+                            quote_block[i] = line[m.span()[1]:]
+                    quote_block = list(filter(lambda split: split.strip(), quote_block))
+
+                    quote_lines = quote_block[:len(quote_block) + - 1]
+                    if _starts_with_quote(quote_lines[0]) and _ends_with_quote(quote_lines[-1]):
+                        # 1st quote line starts with quotation mark and the last line ends with quotation mark
+                        # Strip them to keep unified quote format, not all quotes have this
+                        quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
+                        quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
+
+                    quote = '\n'.join(quote_lines)
+                    last_line = quote_block[-1]
+                    # Cut the dash or any author preceding characters from the last line
+                    author_start_match = re.match(AUTHOR_LINE_START_REGEX, last_line)
+                    if not author_start_match:
+                        self._print_error('Last line does not start with usual author prefix.')
+                    else:
+                        author_start_index = author_start_match.span()[1]
+                        last_line = last_line[author_start_index:]
+                        author_title_split = re.search(', ', last_line)
+                        if not author_title_split:
+                            # Quote has only author, no song title
+                            author = last_line
+                            song_title = None
+                        else:
+                            author_title_split_span = author_title_split.span()
+                            author = last_line[:author_title_split_span[0]]
+                            song_title = _strip_markdown_italics(_strip_quotes(last_line[author_title_split_span[1]:]))
+                        self.parsed_quotes.append((quote, author, song_title))
+                    self._set_state(QuoteParser.State.PARSE_QUOTE)
+                else:
+                    self._set_state(QuoteParser.State.FINAL)
 
             elif self._in_state(QuoteParser.State.FINAL):
                 return self.parsed_quotes

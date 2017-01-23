@@ -1,23 +1,27 @@
+import csv
 import datetime
 import locale
-import sys
+import os
 import urllib.request
 
 from bs4 import BeautifulSoup
 
 from hip_hop_quote_parser import QuoteParser
 
+POSTS_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-posts.csv')
+QUOTES_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-quotes.csv')
+
 BLOG_BASE_URL = 'http://www.bhorowitz.com/'
 # BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
 
 
-def parse_blog_page(page_html):
+def parse_blog_page(page_html, post_id_offset=0):
     # Set locale to US for date parsing, the en_IN locale must be available in the system
     locale.setlocale(locale.LC_TIME, "en_IN")
 
     soup = BeautifulSoup(page_html, 'html.parser')
     post_excerpt_divs = soup.find_all('div', class_='page-excerpt')
-    post_id = 0
+    post_id = post_id_offset
     posts = []
     quotes = []
     for post_excerpt_div in post_excerpt_divs:
@@ -35,7 +39,7 @@ def parse_blog_page(page_html):
         quote_parser = QuoteParser()
         parsed_quotes = quote_parser.parse(post_name, post_excerpt_div)
         quotes.extend([(post_id, quote, author, song_title) for quote, author, song_title in parsed_quotes])
-    return posts, quotes
+    return posts, quotes, post_id
 
 
 def scrape_posts():
@@ -60,17 +64,23 @@ def scrape_posts():
     quotes = []
 
     # Parse the first page
-    new_posts, new_quotes = parse_blog_page(main_page_html)
+    new_posts, new_quotes, next_post_id_offset = parse_blog_page(main_page_html)
     posts.extend(new_posts)
     quotes.extend(new_quotes)
 
+    progress_message = 'Parsed page %s/%s'
+    page_count = len(page_links) + 1
+    print(progress_message % (1, page_count))
+
     # Download and parse the rest of the pages
-    for page_link in page_links:
+    for i in range(len(page_links)):
+        page_link = page_links[i]
         response = urllib.request.urlopen(page_link)
         page_html = response.read()
-        new_posts, new_quotes = parse_blog_page(page_html)
+        new_posts, new_quotes, next_post_id_offset = parse_blog_page(page_html, next_post_id_offset)
         posts.extend(new_posts)
         quotes.extend(new_quotes)
+        print(progress_message % (i + 2, page_count))
     return posts, quotes
 
 
@@ -91,6 +101,18 @@ if __name__ == "__main__":
     for quote in quotes:
         post_id, quote, author, song_title = quote
         post_id, post_date, post_url, post_name = posts[post_id - 1]
-        print('%s (%s):\n\t/%s/%s/%s/' % (post_name, post_url, author, song_title, quote.replace('\n', ' ')))
+        print()
+        print('%s (%s):\n\t/%s/%s/' % (post_name, post_url, author, song_title))
+        print(quote)
 
     print('\nTotal posts: %s, total quotes:%s' % (len(posts), len(quotes)))
+
+    with open(POSTS_OUTPUT_FILE, 'w', newline='') as quotes_file:
+        quotes_writer = csv.writer(quotes_file, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for post in posts:
+            quotes_writer.writerow(post)
+
+    with open(QUOTES_OUTPUT_FILE, 'w', newline='') as quotes_file:
+        quotes_writer = csv.writer(quotes_file, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        for quote in quotes:
+            quotes_writer.writerow(quote)
