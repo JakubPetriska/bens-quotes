@@ -118,6 +118,9 @@ class QuoteParser:
         self.quote_blocks = []
         self.parsed_quotes = []
 
+        if post_name == 'The Case for the Fat Startup':
+            s = ''
+
         while True:
             if self._in_state(QuoteParser.State.INITIAL):
                 self._set_state(QuoteParser.State.GATHER_QUOTE_BLOCKS)
@@ -160,6 +163,7 @@ class QuoteParser:
                             else:
                                 # The line is in the middle of the block so let's unpack it and try again
                                 new_data.extend(_filter_content(item.contents))
+                                break
                 self.data = new_data
                 if self.data:
                     self._set_state(QuoteParser.State.CLEANUP_DATA)
