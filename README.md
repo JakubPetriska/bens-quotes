@@ -1,3 +1,4 @@
-# Ben's Music
+# Ben's Quotes
 
-Web scraper that gathers all post's from Ben Horowitz's blog and parses out all Hip Hop quotations with song titles and author names.
+Web scraper that gathers all quotes from Ben Horowitz's blog 
+and parses out all quotes with author names and song titles if possible.
