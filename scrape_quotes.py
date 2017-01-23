@@ -6,10 +6,15 @@ import urllib.request
 
 from bs4 import BeautifulSoup
 
-from quote_parser import QuoteParser
+from post_parser import PostParser
 
-POSTS_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-posts.csv')
-QUOTES_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-quotes.csv')
+POSTS_OUTPUT_FILE_NAME = 'bens_quotes-posts.csv'
+QUOTES_OUTPUT_FILE_NAME = 'bens_quotes-quotes.csv'
+
+POSTS_OUTPUT_FILE_PATH = os.path.join(os.pardir, POSTS_OUTPUT_FILE_NAME)
+QUOTES_OUTPUT_FILE_PATH = os.path.join(os.pardir, QUOTES_OUTPUT_FILE_NAME)
+
+OUTPUT_FILE_DELIMITER = ';'
 
 BLOG_BASE_URL = 'http://www.bhorowitz.com/'
 
@@ -35,7 +40,7 @@ def parse_blog_page(page_html, post_id_offset=0):
         post_id += 1
         posts.append((post_id, post_date, post_url, post_name))
 
-        quote_parser = QuoteParser()
+        quote_parser = PostParser()
         parsed_quotes = quote_parser.parse(post_name, post_excerpt_div)
         quotes.extend([(post_id, quote, author, song_title) for quote, author, song_title in parsed_quotes])
     return posts, quotes, post_id
@@ -109,12 +114,12 @@ if __name__ == "__main__":
 
     print('\nTotal posts: %s, total quotes: %s' % (len(posts), len(quotes)))
 
-    with open(POSTS_OUTPUT_FILE, 'w', newline='') as quotes_file:
-        quotes_writer = csv.writer(quotes_file, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    with open(POSTS_OUTPUT_FILE_PATH, 'w', newline='') as quotes_file:
+        quotes_writer = csv.writer(quotes_file, delimiter=OUTPUT_FILE_DELIMITER, quoting=csv.QUOTE_MINIMAL)
         for post in posts:
             quotes_writer.writerow(post)
 
-    with open(QUOTES_OUTPUT_FILE, 'w', newline='') as quotes_file:
-        quotes_writer = csv.writer(quotes_file, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    with open(QUOTES_OUTPUT_FILE_PATH, 'w', newline='') as quotes_file:
+        quotes_writer = csv.writer(quotes_file, delimiter=OUTPUT_FILE_DELIMITER, quoting=csv.QUOTE_MINIMAL)
         for quote in quotes:
             quotes_writer.writerow(quote)

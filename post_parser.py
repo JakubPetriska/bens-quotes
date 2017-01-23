@@ -77,7 +77,7 @@ def _strip_markdown_italics(string):
         return string
 
 
-class QuoteParser:
+class PostParser:
     class State(Enum):
         INITIAL = 1
 
@@ -97,7 +97,7 @@ class QuoteParser:
         FINAL = 100
 
     def __init__(self):
-        self.state = QuoteParser.State.INITIAL
+        self.state = PostParser.State.INITIAL
         self.post_name = None
         self.data = None
         self.quote_blocks = []
@@ -117,7 +117,7 @@ class QuoteParser:
             print('\tState: %s' % self.state)
 
     def parse(self, post_name, post_excerpt_div):
-        self.state = QuoteParser.State.INITIAL
+        self.state = PostParser.State.INITIAL
 
         self.post_name = post_name
         self.data = [post_excerpt_div]
@@ -125,14 +125,14 @@ class QuoteParser:
         self.parsed_quotes = []
 
         while True:
-            if self._in_state(QuoteParser.State.INITIAL):
-                self._set_state(QuoteParser.State.GATHER_QUOTE_BLOCKS)
+            if self._in_state(PostParser.State.INITIAL):
+                self._set_state(PostParser.State.GATHER_QUOTE_BLOCKS)
 
-            if self._in_state(QuoteParser.State.FILTER_DATA):
+            if self._in_state(PostParser.State.FILTER_DATA):
                 self.data = _filter_content(self.data)
-                self._set_state(QuoteParser.State.GATHER_QUOTE_BLOCKS)
+                self._set_state(PostParser.State.GATHER_QUOTE_BLOCKS)
 
-            if self._in_state(QuoteParser.State.GATHER_QUOTE_BLOCKS):
+            if self._in_state(PostParser.State.GATHER_QUOTE_BLOCKS):
                 new_data = []
                 last_author_item_index = 0
                 for i in range(len(self.data)):
@@ -161,19 +161,19 @@ class QuoteParser:
                                 break
                 self.data = new_data
                 if self.data:
-                    self._set_state(QuoteParser.State.FILTER_DATA)
+                    self._set_state(PostParser.State.FILTER_DATA)
                 else:
-                    self._set_state(QuoteParser.State.PROCESS_AND_STRIP_QUOTE_BLOCKS)
+                    self._set_state(PostParser.State.PROCESS_AND_STRIP_QUOTE_BLOCKS)
 
-            elif self._in_state(QuoteParser.State.PROCESS_AND_STRIP_QUOTE_BLOCKS):
+            elif self._in_state(PostParser.State.PROCESS_AND_STRIP_QUOTE_BLOCKS):
                 for i in range(len(self.quote_blocks)):
                     quote_block = _filter_content(self.quote_blocks[i])
                     while len(quote_block) == 1:
                         quote_block = _filter_content(quote_block[0])
                     self.quote_blocks[i] = quote_block
-                self._set_state(QuoteParser.State.PARSE_QUOTE)
+                self._set_state(PostParser.State.PARSE_QUOTE)
 
-            elif self._in_state(QuoteParser.State.PARSE_QUOTE):
+            elif self._in_state(PostParser.State.PARSE_QUOTE):
                 if len(self.quote_blocks) > 0:
                     quote_block = self.quote_blocks[0]
                     self.quote_blocks = self.quote_blocks[1:]
@@ -232,9 +232,9 @@ class QuoteParser:
                             author = last_line[:author_title_split_span[0]]
                             song_title = _strip_markdown_italics(_strip_quotes(last_line[author_title_split_span[1]:]))
                         self.parsed_quotes.append((quote, author, song_title))
-                    self._set_state(QuoteParser.State.PARSE_QUOTE)
+                    self._set_state(PostParser.State.PARSE_QUOTE)
                 else:
-                    self._set_state(QuoteParser.State.FINAL)
+                    self._set_state(PostParser.State.FINAL)
 
-            elif self._in_state(QuoteParser.State.FINAL):
+            elif self._in_state(PostParser.State.FINAL):
                 return self.parsed_quotes
