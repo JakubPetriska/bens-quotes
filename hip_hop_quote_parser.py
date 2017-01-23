@@ -190,14 +190,18 @@ class QuoteParser:
                         m = re.match('^\s*>\s*', line)
                         if m:
                             quote_block[i] = line[m.span()[1]:]
-                    quote_block = list(filter(lambda split: split.strip(), quote_block))
+
+                    # Strip all lines of whitespace and remove the empty ones
+                    quote_block = list(map(lambda string: string.strip(), quote_block))
+                    quote_block = list(filter(lambda split: split, quote_block))
 
                     quote_lines = quote_block[:len(quote_block) + - 1]
-                    if _starts_with_quote(quote_lines[0]) and _ends_with_quote(quote_lines[-1]):
-                        # 1st quote line starts with quotation mark and the last line ends with quotation mark
-                        # Strip them to keep unified quote format, not all quotes have this
-                        quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
-                        quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
+                    # Strip quotes at the beginning and end of the quote
+                    quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
+                    quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
+
+                    # Strip whitespace again from all lines
+                    quote_block = list(map(lambda line: line.strip(), quote_block))
 
                     quote = '\n'.join(quote_lines)
                     last_line = quote_block[-1]

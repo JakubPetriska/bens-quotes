@@ -11,8 +11,8 @@ from hip_hop_quote_parser import QuoteParser
 POSTS_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-posts.csv')
 QUOTES_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-quotes.csv')
 
-BLOG_BASE_URL = 'http://www.bhorowitz.com/'
-# BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=2'
+# BLOG_BASE_URL = 'http://www.bhorowitz.com/'
+BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=11'
 
 
 def parse_blog_page(page_html, post_id_offset=0):
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         print('%s (%s):\n\t/%s/%s/' % (post_name, post_url, author, song_title))
         print(quote)
 
-    print('\nTotal posts: %s, total quotes:%s' % (len(posts), len(quotes)))
+    print('\nTotal posts: %s, total quotes: %s' % (len(posts), len(quotes)))
 
     with open(POSTS_OUTPUT_FILE, 'w', newline='') as quotes_file:
         quotes_writer = csv.writer(quotes_file, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
