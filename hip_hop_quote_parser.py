@@ -89,7 +89,7 @@ class QuoteParser:
         # Quote block means list of tags that contain the quote.
         GATHER_QUOTE_BLOCKS = 20
 
-        CUT_NON_QUOTE_RELATED_DATA_FROM_QUOTE_BLOCKS = 30
+        PROCESS_AND_STRIP_QUOTE_BLOCKS = 30
 
         # This state turns quote block into parsed quote. Tuple in format (quote, author, song_title).
         PARSE_QUOTE = 50
@@ -163,10 +163,14 @@ class QuoteParser:
                 if self.data:
                     self._set_state(QuoteParser.State.FILTER_DATA)
                 else:
-                    self._set_state(QuoteParser.State.CUT_NON_QUOTE_RELATED_DATA_FROM_QUOTE_BLOCKS)
+                    self._set_state(QuoteParser.State.PROCESS_AND_STRIP_QUOTE_BLOCKS)
 
-            elif self._in_state(QuoteParser.State.CUT_NON_QUOTE_RELATED_DATA_FROM_QUOTE_BLOCKS):
-                # TODO
+            elif self._in_state(QuoteParser.State.PROCESS_AND_STRIP_QUOTE_BLOCKS):
+                for i in range(len(self.quote_blocks)):
+                    quote_block = _filter_content(self.quote_blocks[i])
+                    while len(quote_block) == 1:
+                        quote_block = _filter_content(quote_block[0])
+                    self.quote_blocks[i] = quote_block
                 self._set_state(QuoteParser.State.PARSE_QUOTE)
 
             elif self._in_state(QuoteParser.State.PARSE_QUOTE):
@@ -195,7 +199,14 @@ class QuoteParser:
                     quote_block = list(filter(lambda split: split, quote_block))
 
                     quote_lines = quote_block[:len(quote_block) + - 1]
-                    # Strip quotes at the beginning and end of the quote
+                    # If the last line ends with quotation mark and there is a line that begins with quotation mark
+                    # and this line is not the first then we have more than our quote.
+                    # So strip everything that is not the quote.
+                    if _ends_with_quote(quote_lines[-1]):
+                        for i in range(len(quote_lines) - 1):
+                            if _starts_with_quote(quote_lines[i]):
+                                quote_lines = quote_lines[i:]
+                                break
                     quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
                     quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
 
