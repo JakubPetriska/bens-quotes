@@ -102,9 +102,11 @@
                             var postId = Number(quote[0])
                             var post = this.posts[postId - 1]
                             var postDate = new Date(post[1])
+                            // TODO separate the quote by newline html tag 
                             result.push([postDate].concat(post.slice(2), quote.slice(1)))
                         }
                     }
+                    console.log(result[0][3])
                     return result
                 }
             }
@@ -119,8 +121,6 @@
     Papa.parse("./data/bens_quotes-posts.csv", {
         download: true,
         complete: function (results) {
-            // TODO remove the log
-            console.log(results);
             if (results.errors.length == 0) {
                 vm.posts = results.data
             } else {
@@ -132,8 +132,6 @@
     Papa.parse("./data/bens_quotes-quotes.csv", {
         download: true,
         complete: function (results) {
-            // TODO remove the log
-            console.log(results);
             if (results.errors.length == 0) {
                 vm.quotes = results.data
             } else {
