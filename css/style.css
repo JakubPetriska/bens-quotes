@@ -1,18 +1,3 @@
-.heil {
-    color: red;
-}
-.title {
-    color: green;
-}
-
-/* Animation effects */
-.fade-enter-active, .fade-leave-active {
-    transition: opacity .5s
-}
-.fade-enter, .fade-leave-to /* .fade-leave-active in <2.1.8 */ {
-    opacity: 0
-}
-
 /* Keeps footer on the bottom */
 body {
     display: flex;
