@@ -16,19 +16,54 @@
 
     <!--Let browser know website is optimized for mobile-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <!-- Library for loading CSV files -->
+    <script src="js/papaparse.min.js"></script>
 </head>
 <body>
-<nav class="red lighten-1" role="navigation">
+<nav class="pink lighten-1" role="navigation">
     <div class="nav-wrapper container"><a id="logo-container" href="#" class="brand-logo">Ben's Quotes</a></div>
 </nav>
 
 <main>
     <div id="app" class="container">
-        Here be dragons
+        <input type="text" placeholder="Search the quotes">
+        <div>
+            <span>What to search:</span>
+            <input type="checkbox" id="search-post-date"><label for="search-post-date">post date</label>
+            <input type="checkbox" id="search-post-name"><label for="search-post-name">post name</label>
+            <input type="checkbox" id="search-quote-author"><label for="search-quote-author">quote author</label>
+            <input type="checkbox" id="search-song-title"><label for="search-song-title">song title</label>
+            <input type="checkbox" id="search-quoted-text"><label for="search-quoted-text">quoted text</label>
+        </div>
+
+        <!--<p>{{ parsedQuotes }}</p>-->
+
+        <table class="bordered">
+            <thead>
+            <tr>
+                <th data-field="post-date">Post date</th>
+                <th data-field="post-name">Post name</th>
+                <th data-field="quote-author">Quote author</th>
+                <th data-field="song-title">Song title</th>
+                <th data-field="quote-text">Quote text</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            <tr v-for="quote in parsedQuotes">
+                <td>{{ quote[0] | formatDate }}</td>
+                <td><a v-bind:href="quote[1]">{{ quote[2] }}</a></td>
+                <td>{{ quote[4] }}</td>
+                <td>{{ quote[5] }}</td>
+                <td>{{ quote[3] }}</td>
+            </tr>
+            </tbody>
+        </table>
     </div>
 </main>
 
-<footer class="page-footer red">
+<footer class="page-footer pink lighten-1">
     <div class="container">
         <div class="row">
             <div class="col l6 s12">
@@ -42,6 +77,71 @@
         </div>
     </div>
 </footer>
+
+<script type="text/javascript">
+    var MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    var vm = new Vue({
+        el: "#app",
+        data: {
+            posts: [],
+            quotes: []
+        },
+        computed: {
+            parsedQuotes: function() {
+                if (this.posts.length == 0 || this.quotes.length == 0) {
+                    // Some of the data were not loaded yet
+                    return []
+                } else {
+                    var result = []
+                    for (i = 0; i < this.quotes.length; ++i) {
+                        var quote = this.quotes[i]
+                        if (quote.length == 4) {
+                            var postId = Number(quote[0])
+                            var post = this.posts[postId - 1]
+                            var postDate = new Date(post[1])
+                            result.push([postDate].concat(post.slice(2), quote.slice(1)))
+                        }
+                    }
+                    return result
+                }
+            }
+        },
+        filters: {
+            formatDate: function (value) {
+                return MONTH_NAMES[value.getMonth()] + " " + value.getDate() + ", " + value.getFullYear()
+            }
+        }
+    })
+
+    Papa.parse("./data/bens_quotes-posts.csv", {
+        download: true,
+        complete: function (results) {
+            // TODO remove the log
+            console.log(results);
+            if (results.errors.length == 0) {
+                vm.posts = results.data
+            } else {
+                // TODO show result and offer to reload
+            }
+        }
+    })
+
+    Papa.parse("./data/bens_quotes-quotes.csv", {
+        download: true,
+        complete: function (results) {
+            // TODO remove the log
+            console.log(results);
+            if (results.errors.length == 0) {
+                vm.quotes = results.data
+            } else {
+                // TODO show result and offer to reload
+            }
+        }
+    })
+</script>
 
 <!-- Materialize stuff -->
 <!--Import jQuery before materialize.js-->
