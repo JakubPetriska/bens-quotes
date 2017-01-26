@@ -27,17 +27,22 @@
 
 <main>
     <div id="app" class="container">
-        <input type="text" placeholder="Search the quotes">
+        <input type="text" v-model.trim="searchQuery" placeholder="Search the quotes">
         <div>
             <span>What to search:</span>
-            <input type="checkbox" id="search-post-date"><label for="search-post-date">post date</label>
-            <input type="checkbox" id="search-post-name"><label for="search-post-name">post name</label>
-            <input type="checkbox" id="search-quote-author"><label for="search-quote-author">quote author</label>
-            <input type="checkbox" id="search-song-title"><label for="search-song-title">song title</label>
-            <input type="checkbox" id="search-quoted-text"><label for="search-quoted-text">quoted text</label>
-        </div>
 
-        <!--<p>{{ parsedQuotes }}</p>-->
+            <input type="checkbox" id="search-post-name" v-model="searchParams.postName">
+            <label for="search-post-name">post name</label>
+
+            <input type="checkbox" id="search-quote-author" v-model="searchParams.quoteAuthor">
+            <label for="search-quote-author">quote author</label>
+
+            <input type="checkbox" id="search-song-title" v-model="searchParams.songTitle">
+            <label for="search-song-title">song title</label>
+
+            <input type="checkbox" id="search-quoted-text" v-model="searchParams.quotedText">
+            <label for="search-quoted-text">quoted text</label>
+        </div>
 
         <table class="bordered">
             <thead>
@@ -51,12 +56,16 @@
             </thead>
 
             <tbody>
-            <tr v-for="quote in parsedQuotes">
+            <tr v-for="quote in searchedQuotes">
                 <td>{{ quote[0] | formatDate }}</td>
                 <td><a v-bind:href="quote[1]">{{ quote[2] }}</a></td>
                 <td>{{ quote[4] }}</td>
                 <td>{{ quote[5] }}</td>
-                <td>{{ quote[3] }}</td>
+                <td>
+                    <template v-for="quoteLine in quote[3].split('\n')">
+                        {{ quoteLine }}<br>
+                    </template>
+                </td>
             </tr>
             </tbody>
         </table>
@@ -83,30 +92,62 @@
         "July", "August", "September", "October", "November", "December"
     ];
 
+    function search(query, string) {
+        return string.toLowerCase().search(query.toLowerCase()) != -1
+    }
+
     var vm = new Vue({
         el: "#app",
         data: {
             posts: [],
-            quotes: []
+            quotes: [],
+            searchQuery: "",
+            searchParams: {
+                postName: true,
+                quoteAuthor: true,
+                songTitle: true,
+                quotedText: true
+            }
         },
         computed: {
-            parsedQuotes: function() {
+            parsedQuotes: function () {
                 if (this.posts.length == 0 || this.quotes.length == 0) {
                     // Some of the data were not loaded yet
                     return []
                 } else {
                     var result = []
-                    for (i = 0; i < this.quotes.length; ++i) {
+                    for (var i = 0; i < this.quotes.length; ++i) {
                         var quote = this.quotes[i]
                         if (quote.length == 4) {
                             var postId = Number(quote[0])
                             var post = this.posts[postId - 1]
                             var postDate = new Date(post[1])
-                            // TODO separate the quote by newline html tag 
                             result.push([postDate].concat(post.slice(2), quote.slice(1)))
                         }
                     }
-                    console.log(result[0][3])
+                    return result
+                }
+            },
+            searchedQuotes: function () {
+                if (!this.searchQuery
+                    || !(this.searchParams.postName || this.searchParams.quoteAuthor
+                    || this.searchParams.songTitle || this.searchParams.quotedText)) {
+                    return this.parsedQuotes
+                } else {
+                    var result = []
+                    for (var i = 0; i < this.parsedQuotes.length; ++i) {
+                        var parsedQuote = this.parsedQuotes[i]
+                        var postName = parsedQuote[2]
+                        var quoteAuthor = parsedQuote[4]
+                        var songTitle = parsedQuote[5]
+                        var quotedText = parsedQuote[3]
+                        if ((this.searchParams.postName && search(this.searchQuery, postName))
+                            || (this.searchParams.quoteAuthor && search(this.searchQuery, quoteAuthor))
+                            || (this.searchParams.songTitle && search(this.searchQuery, songTitle))
+                            || (this.searchParams.quotedText && search(this.searchQuery, quotedText))) {
+                            result.push(this.parsedQuotes[i])
+                        }
+                    }
                     return result
                 }
             }
