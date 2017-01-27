@@ -36,7 +36,7 @@
             <input type="text" v-model.trim="searchQuery" placeholder="Search the quotes">
             <!--<a v-if="searchQuery" @click="searchQuery = ''" class="clear-search material-icons black-text">clear</a>-->
             <button v-if="searchQuery" @click="searchQuery = ''"
-                    class="clear-search material-icons black-text btn-transparent">
+                    class="clear-search material-icons black-text btn-no-style">
                 clear
             </button>
         </div>
@@ -62,7 +62,11 @@
         <table class="bordered">
             <thead>
             <tr>
-                <th data-field="post-date">Post date</th>
+                <th data-field="post-date">
+                    <div>
+                        <span>Post date</span><i class="material-icons sort-arrow">arrow_upward</i>
+                    </div>
+                </th>
                 <th data-field="post-name">Post name</th>
                 <th data-field="quote-author">Quote author</th>
                 <th data-field="song-title">Song title</th>

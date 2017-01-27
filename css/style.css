@@ -16,9 +16,15 @@
     right: 0;
 }
 
-.btn-transparent {
+.btn-no-style {
     background: none;
     border: none;
+}
+
+.sort-arrow {
+    position: relative;
+    left: 10px;
+    top: 5px;
 }
 
 /* Keeps footer on the bottom */
