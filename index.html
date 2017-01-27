@@ -64,38 +64,40 @@
                 frameborder="0" allowfullscreen>
         </iframe>
 
-        <div class="row">
-            <button class="col s3 btn-no-style" v-for="data_table_item in dataTableItems"
-                    @click="onSort(data_table_item)">
-                <span>{{ data_table_item }}</span>
-                <i v-if="sortCriterion == data_table_item && sortDirection == 1" class="material-icons sort-arrow">
-                    arrow_upward
-                </i>
-                <i v-else-if="sortCriterion == data_table_item && sortDirection == -1"
-                   class="material-icons sort-arrow">
-                    arrow_downward
-                </i>
-            </button>
-        </div>
-        <div v-for="quote, index in sortedQuotes">
-            <div class="row" style="margin-bottom: 0">
-                <div class="col s3 btn-no-style">{{ quote[0] | formatDate }}</div>
-                <div class="col s3 btn-no-style"><a v-bind:href="quote[1]">{{ quote[2] }}</a></div>
-                <div class="col s3 btn-no-style">{{ quote[4] }}</div>
-                <div class="col s3 btn-no-style">{{ quote[5] }}</div>
-            </div>
+        <div>
             <div class="row">
-                <div class="col s8">
-                    <template v-for="quoteLine in quote[3].split('\n')">
-                        {{ quoteLine }}<br>
-                    </template>
+                <button class="col s3 btn-no-style" v-for="data_table_item in dataTableItems"
+                        @click="onSort(data_table_item)">
+                    <span>{{ data_table_item }}</span>
+                    <i v-if="sortCriterion == data_table_item && sortDirection == 1" class="material-icons sort-arrow">
+                        arrow_upward
+                    </i>
+                    <i v-else-if="sortCriterion == data_table_item && sortDirection == -1"
+                       class="material-icons sort-arrow">
+                        arrow_downward
+                    </i>
+                </button>
+            </div>
+            <div v-for="quote, index in sortedQuotes">
+                <div class="row" style="margin-bottom: 0">
+                    <div class="col s3 btn-no-style">{{ quote[0] | formatDate }}</div>
+                    <div class="col s3 btn-no-style"><a v-bind:href="quote[1]">{{ quote[2] }}</a></div>
+                    <div class="col s3 btn-no-style">{{ quote[4] }}</div>
+                    <div class="col s3 btn-no-style">{{ quote[5] }}</div>
                 </div>
-                <div class="col s4">
-                    <a v-if="quote[5].trim()" @click="playSong(index)"
-                       class="waves-effect waves-light btn">
-                        <i class="material-icons right">play_arrow</i>
-                        play
-                    </a>
+                <div class="row">
+                    <div class="col s8">
+                        <template v-for="quoteLine in quote[3].split('\n')">
+                            {{ quoteLine }}<br>
+                        </template>
+                    </div>
+                    <div class="col s4">
+                        <a v-if="quote[5].trim()" @click="playSong(index)"
+                           class="waves-effect waves-light btn">
+                            <i class="material-icons right">play_arrow</i>
+                            play
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
