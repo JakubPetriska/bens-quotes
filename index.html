@@ -85,14 +85,17 @@
                 <div class="col s3 btn-no-style">{{ quote[5] }}</div>
             </div>
             <div class="row">
-                <div class="col s11">
+                <div class="col s10">
                     <template v-for="quoteLine in quote[3].split('\n')">
                         {{ quoteLine }}<br>
                     </template>
                 </div>
-                <button v-if="quote[5].trim()" class="col s1 material-icons btn-no-style" @click="playSong(index)">
-                    play_arrow
-                </button>
+                <div class="col s2">
+                    <a v-if="quote[5].trim()" class="waves-effect waves-light btn" @click="playSong(index)">
+                        <i class="material-icons right">play_arrow</i>
+                        play
+                    </a>
+                </div>
             </div>
         </div>
     </div>
