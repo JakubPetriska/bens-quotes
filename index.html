@@ -19,29 +19,44 @@
 
     <!-- Library for loading CSV files -->
     <script src="js/papaparse.min.js"></script>
+
+    <!-- Material icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-<nav class="pink lighten-1" role="navigation">
-    <div class="nav-wrapper container"><a id="logo-container" href="#" class="brand-logo">Ben's Quotes</a></div>
+<nav class="white" role="navigation">
+    <div class="nav-wrapper container">
+        <a id="logo-container" href="#" class="brand-logo black-text">Ben's Quotes</a>
+    </div>
 </nav>
 
 <main>
     <div id="app" class="container">
-        <input type="text" v-model.trim="searchQuery" placeholder="Search the quotes">
+        <div class="search-wrapper">
+            <input type="text" v-model.trim="searchQuery" placeholder="Search the quotes">
+            <!--<a v-if="searchQuery" @click="searchQuery = ''" class="clear-search material-icons black-text">clear</a>-->
+            <button v-if="searchQuery" @click="searchQuery = ''"
+                    class="clear-search material-icons black-text btn-transparent">
+                clear
+            </button>
+        </div>
         <div>
-            <span>What to search:</span>
+            <span class="search-option-margin">Search in</span>
 
             <input type="checkbox" id="search-post-name" v-model="searchParams.postName">
-            <label for="search-post-name">post name</label>
+            <label for="search-post-name" class="search-option-margin">Post name</label>
 
             <input type="checkbox" id="search-quote-author" v-model="searchParams.quoteAuthor">
-            <label for="search-quote-author">quote author</label>
+            <label for="search-quote-author" class="search-option-margin">Quote author</label>
 
             <input type="checkbox" id="search-song-title" v-model="searchParams.songTitle">
-            <label for="search-song-title">song title</label>
+            <label for="search-song-title" class="search-option-margin">Song title</label>
 
             <input type="checkbox" id="search-quoted-text" v-model="searchParams.quotedText">
-            <label for="search-quoted-text">quoted text</label>
+            <label for="search-quoted-text" class="search-option-double-margin">Quoted text</label>
+
+            <input type="checkbox" id="search-check-all">
+            <label for="search-check-all">Check all</label>
         </div>
 
         <table class="bordered">
@@ -72,7 +87,7 @@
     </div>
 </main>
 
-<footer class="page-footer pink lighten-1">
+<footer class="page-footer teal lighten-1">
     <div class="container">
         <div class="row">
             <div class="col l6 s12">
