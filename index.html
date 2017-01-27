@@ -55,7 +55,7 @@
             <input type="checkbox" id="search-quoted-text" v-model="searchParams.quotedText">
             <label for="search-quoted-text" class="search-option-double-margin">Quoted text</label>
 
-            <input type="checkbox" id="search-check-all">
+            <input type="checkbox" id="search-check-all" v-model="searchParamsCheckAll" @click="toggleCheckAll">
             <label for="search-check-all">Check all</label>
         </div>
 
@@ -118,11 +118,43 @@
                 quoteAuthor: true,
                 songTitle: true,
                 quotedText: true
-            }
+            },
+            searchParamsCheckAll: true,
+            checkAllWatcherEnabled: true
         },
         methods: {
             search: function (query, content) {
                 return content.toLowerCase().search(query.toLowerCase()) != -1
+            },
+            toggleCheckAll: function () {
+                if(this.checkAllWatcherEnabled) {
+                    var searchParamsKeys = Object.keys(this.searchParams)
+                    for (var i = 0; i < searchParamsKeys.length; ++i) {
+                        this.searchParams[searchParamsKeys[i]] = this.searchParamsCheckAll
+                    }
+                }
+            },
+            updateCheckAll: function () {
+                var allTrue = true
+                var searchParamsKeys = Object.keys(this.searchParams)
+                for (var i = 0; i < searchParamsKeys.length; ++i) {
+                     allTrue = allTrue && this.searchParams[searchParamsKeys[i]]
+                }
+                this.searchParamsCheckAll = allTrue
+            }
+        },
+        watch: {
+            'searchParams.postName': function () {
+                this.updateCheckAll()
+            },
+            'searchParams.quoteAuthor': function () {
+                this.updateCheckAll()
+            },
+            'searchParams.songTitle': function () {
+                this.updateCheckAll()
+            },
+            'searchParams.quotedText': function () {
+                this.updateCheckAll()
             }
         },
         computed: {
