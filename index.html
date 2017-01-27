@@ -107,10 +107,6 @@
         "July", "August", "September", "October", "November", "December"
     ];
 
-    function search(query, string) {
-        return string.toLowerCase().search(query.toLowerCase()) != -1
-    }
-
     var vm = new Vue({
         el: "#app",
         data: {
@@ -122,6 +118,11 @@
                 quoteAuthor: true,
                 songTitle: true,
                 quotedText: true
+            }
+        },
+        methods: {
+            search: function (query, content) {
+                return content.toLowerCase().search(query.toLowerCase()) != -1
             }
         },
         computed: {
@@ -156,10 +157,10 @@
                         var quoteAuthor = parsedQuote[4]
                         var songTitle = parsedQuote[5]
                         var quotedText = parsedQuote[3]
-                        if ((this.searchParams.postName && search(this.searchQuery, postName))
-                            || (this.searchParams.quoteAuthor && search(this.searchQuery, quoteAuthor))
-                            || (this.searchParams.songTitle && search(this.searchQuery, songTitle))
-                            || (this.searchParams.quotedText && search(this.searchQuery, quotedText))) {
+                        if ((this.searchParams.postName && this.search(this.searchQuery, postName))
+                            || (this.searchParams.quoteAuthor && this.search(this.searchQuery, quoteAuthor))
+                            || (this.searchParams.songTitle && this.search(this.searchQuery, songTitle))
+                            || (this.searchParams.quotedText && this.search(this.searchQuery, quotedText))) {
                             result.push(this.parsedQuotes[i])
                         }
                     }
