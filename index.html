@@ -58,6 +58,12 @@
             <label for="search-check-all">Check all</label>
         </div>
 
+        <iframe v-if="videoUrl"
+                width="560" height="315"
+                :src="videoUrl"
+                frameborder="0" allowfullscreen>
+        </iframe>
+
         <div class="row">
             <button class="col s3 btn-no-style" v-for="data_table_item in dataTableItems"
                     @click="onSort(data_table_item)">
@@ -71,7 +77,7 @@
                 </i>
             </button>
         </div>
-        <div v-for="quote in sortedQuotes">
+        <div v-for="quote, index in sortedQuotes">
             <div class="row" style="margin-bottom: 0">
                 <div class="col s3 btn-no-style">{{ quote[0] | formatDate }}</div>
                 <div class="col s3 btn-no-style"><a v-bind:href="quote[1]">{{ quote[2] }}</a></div>
@@ -84,9 +90,9 @@
                         {{ quoteLine }}<br>
                     </template>
                 </div>
-                <div class="col s1">
-                    Youtube link here
-                </div>
+                <button v-if="quote[5].trim()" class="col s1 material-icons btn-no-style" @click="playSong(index)">
+                    play_arrow
+                </button>
             </div>
         </div>
     </div>
@@ -114,6 +120,11 @@
 
     var DATA_TABLE_ITEMS = ["Post date", "Post name", "Quote author", "Song title"]
 
+    function getYoutubeSearchUrl(query) {
+        return "https://www.googleapis.com/youtube/v3/search" +
+            "?key=AIzaSyBOKFEFDhxSsFCiO9i6xpt5yL5tghOCpBg&part=snippet&maxResults=1&q='" + query + "'"
+    }
+
     var vm = new Vue({
         el: "#app",
         data: {
@@ -130,7 +141,8 @@
             checkAllWatcherEnabled: true,
             dataTableItems: DATA_TABLE_ITEMS,
             sortCriterion: DATA_TABLE_ITEMS[0],
-            sortDirection: -1
+            sortDirection: -1,
+            videoUrl: null
         },
         methods: {
             search: function (query, content) {
@@ -159,6 +171,28 @@
                     this.sortCriterion = sortItem
                     this.sortDirection = sortItem === DATA_TABLE_ITEMS[0] ? -1 : 1
                 }
+            },
+            playSong: function (quoteIndex) {
+                // TODO show progress
+                var quote = this.sortedQuotes[quoteIndex]
+
+                var xmlHttp = new XMLHttpRequest()
+                xmlHttp.responseType = "json"
+                xmlHttp.onreadystatechange = function () {
+                    if (xmlHttp.readyState == 4) {
+                        if (xmlHttp.status == 200 && xmlHttp.response && xmlHttp.response.items.length == 1) {
+                            var searchResult = xmlHttp.response.items[0]
+                            vm.videoUrl = "https://www.youtube.com/embed/" + searchResult.id.videoId
+                            console.log(searchResult)
+                            console.log(searchResult.id.videoId)
+                            console.log(vm.videoUrl)
+                        } else {
+                            console.log("well shit")
+                        }
+                    }
+                }
+                xmlHttp.open("GET", getYoutubeSearchUrl(quote[4] + " " + quote[5]), true)
+                xmlHttp.send();
             }
         },
         watch: {
