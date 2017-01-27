@@ -85,13 +85,14 @@
                 <div class="col s3 btn-no-style">{{ quote[5] }}</div>
             </div>
             <div class="row">
-                <div class="col s10">
+                <div class="col s8">
                     <template v-for="quoteLine in quote[3].split('\n')">
                         {{ quoteLine }}<br>
                     </template>
                 </div>
-                <div class="col s2">
-                    <a v-if="quote[5].trim()" class="waves-effect waves-light btn" @click="playSong(index)">
+                <div class="col s4">
+                    <a v-if="quote[5].trim()" @click="playSong(index)"
+                       class="waves-effect waves-light btn">
                         <i class="material-icons right">play_arrow</i>
                         play
                     </a>
@@ -125,7 +126,7 @@
 
     function getYoutubeSearchUrl(query) {
         return "https://www.googleapis.com/youtube/v3/search" +
-            "?key=AIzaSyBOKFEFDhxSsFCiO9i6xpt5yL5tghOCpBg&part=snippet&maxResults=1&q='" + query + "'"
+            "?key=AIzaSyBOKFEFDhxSsFCiO9i6xpt5yL5tghOCpBg&part=snippet&maxResults=5&q='" + query + "'"
     }
 
     var vm = new Vue({
@@ -183,12 +184,11 @@
                 xmlHttp.responseType = "json"
                 xmlHttp.onreadystatechange = function () {
                     if (xmlHttp.readyState == 4) {
-                        if (xmlHttp.status == 200 && xmlHttp.response && xmlHttp.response.items.length == 1) {
+                        if (xmlHttp.status == 200 && xmlHttp.response && xmlHttp.response.items.length > 0) {
+                            // TODO choose the most relevant item, the one that contains possibly only the author and title
                             var searchResult = xmlHttp.response.items[0]
                             vm.videoUrl = "https://www.youtube.com/embed/" + searchResult.id.videoId
                             console.log(searchResult)
-                            console.log(searchResult.id.videoId)
-                            console.log(vm.videoUrl)
                         } else {
                             console.log("well shit")
                         }
