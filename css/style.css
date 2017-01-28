@@ -22,8 +22,6 @@
 .video-player {
     display: block;
     margin: auto;
-    /*left: 25%;*/
-    /*margin: auto;*/
 }
 
 /* Data table */
@@ -36,15 +34,15 @@
     padding-bottom: 10px;
 }
 
+.data-table-header-button-text {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
 /* TODO what about those? */
 .btn-no-style {
     background: none;
     border: none;
-}
-
-.data-table-header-button-text {
-    margin-top: 10px;
-    margin-bottom: 10px;
 }
 
 /* Keeps footer on the bottom */

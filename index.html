@@ -34,7 +34,7 @@
 </nav>
 
 <main>
-    <div id="app" class="container">
+    <div id="app" class="container" style="position: relative">
         <div style="position: relative">
             <input type="text" v-model.trim="searchQuery" placeholder="Search the quotes">
             <button v-if="searchQuery" @click="searchQuery = ''"
@@ -120,6 +120,13 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div style="float: right">
+            <a class="waves-effect waves-teal btn-flat" @click="scrollToTop">
+                <i class="material-icons right">arrow_upward</i>
+                Back to top
+            </a>
         </div>
     </div>
 </main>
@@ -228,6 +235,9 @@
                 }
                 xmlHttp.open("GET", getYoutubeSearchUrl(author + " " + songTitle), true)
                 xmlHttp.send();
+            },
+            scrollToTop: function () {
+                $("html, body").animate({ scrollTop: 0 }, "fast")
             }
         },
         watch: {
