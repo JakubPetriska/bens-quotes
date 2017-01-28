@@ -119,6 +119,11 @@
     </div>
 </footer>
 
+<!-- Materialize stuff -->
+<!--Import jQuery before materialize.js-->
+<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script type="text/javascript" src="js/materialize.min.js"></script>
+
 <script type="text/javascript">
     var MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -128,7 +133,7 @@
 
     function getYoutubeSearchUrl(query) {
         return "https://www.googleapis.com/youtube/v3/search" +
-            "?key=AIzaSyBOKFEFDhxSsFCiO9i6xpt5yL5tghOCpBg&part=snippet&maxResults=5&q='" + query + "'"
+            "?key=AIzaSyBOKFEFDhxSsFCiO9i6xpt5yL5tghOCpBg&part=snippet&maxResults=1&q='" + query + "'"
     }
 
     var vm = new Vue({
@@ -181,22 +186,22 @@
             playSong: function (quoteIndex) {
                 // TODO show progress
                 var quote = this.sortedQuotes[quoteIndex]
+                var author = quote[4].toLowerCase()
+                var songTitle = quote[5].toLowerCase()
 
                 var xmlHttp = new XMLHttpRequest()
                 xmlHttp.responseType = "json"
                 xmlHttp.onreadystatechange = function () {
                     if (xmlHttp.readyState == 4) {
-                        if (xmlHttp.status == 200 && xmlHttp.response && xmlHttp.response.items.length > 0) {
-                            // TODO choose the most relevant item, the one that contains possibly only the author and title
-                            var searchResult = xmlHttp.response.items[0]
-                            vm.videoUrl = "https://www.youtube.com/embed/" + searchResult.id.videoId
-                            console.log(searchResult)
+                        if (xmlHttp.status == 200 && xmlHttp.response
+                            && xmlHttp.response.items.length > 0 && xmlHttp.response.items[0].id.videoId) {
+                            vm.videoUrl = "https://www.youtube.com/embed/" + xmlHttp.response.items[0].id.videoId
                         } else {
-                            console.log("well shit")
+                            console.log("well shit no videos")
                         }
                     }
                 }
-                xmlHttp.open("GET", getYoutubeSearchUrl(quote[4] + " " + quote[5]), true)
+                xmlHttp.open("GET", getYoutubeSearchUrl(author + " " + songTitle), true)
                 xmlHttp.send();
             }
         },
@@ -303,10 +308,5 @@
         }
     })
 </script>
-
-<!-- Materialize stuff -->
-<!--Import jQuery before materialize.js-->
-<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-<script type="text/javascript" src="js/materialize.min.js"></script>
 </body>
 </html>
