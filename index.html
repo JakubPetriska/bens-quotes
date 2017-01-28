@@ -324,9 +324,8 @@
         download: true,
         complete: function (results) {
             if (results.errors.length == 0) {
+                // This should always work
                 vm.posts = results.data
-            } else {
-                // TODO show result and offer to reload
             }
         }
     })
@@ -335,9 +334,8 @@
         download: true,
         complete: function (results) {
             if (results.errors.length == 0) {
+                // This should always work
                 vm.quotes = results.data
-            } else {
-                // TODO show result and offer to reload
             }
         }
     })
