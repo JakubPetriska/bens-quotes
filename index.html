@@ -111,11 +111,26 @@
                         </template>
                     </div>
                     <div class="col s3">
-                        <a v-if="quote[5].trim()" @click="playSong(index)"
-                           class="waves-effect waves-light btn blue-grey darken-1">
-                            <i class="material-icons right">play_arrow</i>
-                            play
-                        </a>
+                        <template v-if="quote[5].trim()">
+                            <div v-if="loadedVideoQuoteIndex == index"
+                                 class="preloader-wrapper small active">
+                                <div class="spinner-layer spinner-blue-grey-only">
+                                    <div class="circle-clipper left">
+                                        <div class="circle"></div>
+                                    </div>
+                                    <div class="gap-patch">
+                                        <div class="circle"></div>
+                                    </div>
+                                    <div class="circle-clipper right">
+                                        <div class="circle"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <a v-else @click="playSong(index)" class="waves-effect waves-light btn blue-grey darken-1">
+                                <i class="material-icons right">play_arrow</i>
+                                play
+                            </a>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -184,6 +199,8 @@
             dataTableItems: DATA_TABLE_ITEMS,
             sortCriterion: DATA_TABLE_ITEMS[0],
             sortDirection: -1,
+            loadedVideoQuoteIndex: -1,
+            youtubeRequest: null,
             videoUrl: null
         },
         methods: {
@@ -215,7 +232,12 @@
                 }
             },
             playSong: function (quoteIndex) {
-                // TODO show progress
+                if (this.youtubeRequest != null) {
+                    this.youtubeRequest.abort()
+                }
+
+                this.loadedVideoQuoteIndex = quoteIndex
+
                 var quote = this.sortedQuotes[quoteIndex]
                 var author = quote[4].toLowerCase()
                 var songTitle = quote[5].toLowerCase()
@@ -223,17 +245,21 @@
                 var xmlHttp = new XMLHttpRequest()
                 xmlHttp.responseType = "json"
                 xmlHttp.onreadystatechange = function () {
+                    vm.youtubeRequest = null
                     if (xmlHttp.readyState == 4) {
                         if (xmlHttp.status == 200 && xmlHttp.response
                             && xmlHttp.response.items.length > 0 && xmlHttp.response.items[0].id.videoId) {
                             vm.videoUrl = "https://www.youtube.com/embed/" + xmlHttp.response.items[0].id.videoId
                         } else {
+                            // TODO
                             console.log("well shit no videos")
                         }
                     }
+                    vm.loadedVideoQuoteIndex = -1
                 }
                 xmlHttp.open("GET", getYoutubeSearchUrl(author + " " + songTitle), true)
                 xmlHttp.send();
+                this.youtubeRequest = xmlHttp
             },
             scrollToTop: function () {
                 $("html, body").animate({scrollTop: 0}, "fast")
