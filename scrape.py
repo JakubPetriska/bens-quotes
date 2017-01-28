@@ -3,6 +3,7 @@ import datetime
 import locale
 import os
 import urllib.request
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
@@ -11,76 +12,86 @@ from hip_hop_quote_parser import QuoteParser
 POSTS_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-posts.csv')
 QUOTES_OUTPUT_FILE = os.path.join(os.pardir, 'bensqutoes-quotes.csv')
 
-BLOG_BASE_URL = 'http://www.bhorowitz.com/'
-# BLOG_BASE_URL = 'http://www.bhorowitz.com/?page=11'
+BLOG_BASE_URL = 'https://a16z.com/'
+BLOG_POSTS_PAGE = BLOG_BASE_URL + 'author/ben-horowitz/'
 
 
-def parse_blog_page(page_html, post_id_offset=0):
-    # Set locale to US for date parsing, the en_IN locale must be available in the system
-    locale.setlocale(locale.LC_TIME, "en_IN")
-
-    soup = BeautifulSoup(page_html, 'html.parser')
-    post_excerpt_divs = soup.find_all('div', class_='page-excerpt')
-    post_id = post_id_offset
-    posts = []
-    quotes = []
-    for post_excerpt_div in post_excerpt_divs:
-        post_date_string = post_excerpt_div.div.string.strip()
-        post_date = datetime.datetime.strptime(post_date_string, '%B %d, %Y')
-
-        post_url_relative = post_excerpt_div.h3.a['href']
-        post_url = BLOG_BASE_URL + post_url_relative[1:] if post_url_relative.startswith('/') else post_url_relative
-
-        post_name = post_excerpt_div.h3.a.string
-
-        post_id += 1
-        posts.append((post_id, post_date, post_url, post_name))
-
-        quote_parser = QuoteParser()
-        parsed_quotes = quote_parser.parse(post_name, post_excerpt_div)
-        quotes.extend([(post_id, quote, author, song_title) for quote, author, song_title in parsed_quotes])
-    return posts, quotes, post_id
+# def parse_blog_page(page_html, post_id_offset=0):
+#     # Set locale to US for date parsing, the en_IN locale must be available in the system
+#     locale.setlocale(locale.LC_TIME, "en_IN")
+#
+#     soup = BeautifulSoup(page_html, 'html.parser')
+#     post_excerpt_divs = soup.find_all('div', class_='page-excerpt')
+#     post_id = post_id_offset
+#     posts = []
+#     quotes = []
+#     for post_excerpt_div in post_excerpt_divs:
+#         post_date_string = post_excerpt_div.div.string.strip()
+#         post_date = datetime.datetime.strptime(post_date_string, '%B %d, %Y')
+#
+#         post_url_relative = post_excerpt_div.h3.a['href']
+#         post_url = BLOG_BASE_URL + post_url_relative[1:] if post_url_relative.startswith('/') else post_url_relative
+#
+#         post_name = post_excerpt_div.h3.a.string
+#
+#         post_id += 1
+#         posts.append((post_id, post_date, post_url, post_name))
+#
+#         quote_parser = QuoteParser()
+#         parsed_quotes = quote_parser.parse(post_name, post_excerpt_div)
+#         quotes.extend([(post_id, quote, author, song_title) for quote, author, song_title in parsed_quotes])
+#     return posts, quotes, post_id
 
 
 def scrape_posts():
-    # Download the main page
-    response = urllib.request.urlopen(BLOG_BASE_URL)
-    main_page_html = response.read()
-
-    # Figure out how many pages are there and gather their links
-    soup = BeautifulSoup(main_page_html, 'html.parser')
-    page_link_tags = soup.find('div', class_='pagination').find_all('li')
-    # Remove all tags until the active page and the active page as well
-    # We started at home (1st page) so all following are all that's needed
-    # Also in case we want to start from some other page than 1st this allows us to only to that and all following pages
-    for i in range(len(page_link_tags)):
-        if 'class' in page_link_tags[i].attrs and page_link_tags[i]['class'][0] == 'active':
-            page_link_tags = page_link_tags[i + 1:]
-            break
-    page_link_tags = list(filter(lambda tag: tag.a.string.isdigit(), page_link_tags))
-    page_links = [page_link_tag.a['href'] for page_link_tag in page_link_tags]
-
+    # We'll progress from the Ben Horowitz's page which contains his latest posts and Load more button.
+    # The Load more button calls ajax request which gives <div> containing more posts and also new Load more button.
+    # We'll call Load more button's URL in loop starting with Ben Horowitz's page URL while
+    # the Load more button will be present in server's answer.
     posts = []
+    post_id = 0
+    url = BLOG_POSTS_PAGE
+    while True:
+        print('Loading URL: %s' % url)
+        response = urllib.request.urlopen(url)
+        html = response.read()
+        soup = BeautifulSoup(html, 'html.parser')
+        articles = soup.find_all('article')
+        for article in articles:
+            article_header = article.h3
+            post_name = article_header.get_text()
+            if not post_name.startswith('a16z Podcast:'):
+                # We don't care about podcasts
+                post_id += 1
+                post_url = article_header.parent['href']
+
+                # TODO allow posts from more domains
+                post_domain = urlparse(post_url).netloc
+                if post_domain.startswith('www.'):
+                    post_domain = post_domain[4:]
+
+                if post_domain == 'a16z.com':
+                    post_date = article.time['datetime']
+                    posts.append([post_id, post_date, post_url, post_name])
+                else:
+                    print('Post from unsupported domain %s skipped' % post_domain)
+        load_more_button = soup.find(id='trigger-load-more')
+        if load_more_button:
+            url = BLOG_BASE_URL + load_more_button['data-ajax-path']
+        else:
+            break
+
     quotes = []
+    for post in posts:
+        post_id, post_date, post_url, post_name = post
+        response = urllib.request.urlopen(post_url)
+        html = response.read()
+        soup = BeautifulSoup(html, 'html.parser')
+        article_div = soup.article.find('div', class_='entry-content')
 
-    # Parse the first page
-    new_posts, new_quotes, next_post_id_offset = parse_blog_page(main_page_html)
-    posts.extend(new_posts)
-    quotes.extend(new_quotes)
-
-    progress_message = 'Parsed page %s/%s'
-    page_count = len(page_links) + 1
-    print(progress_message % (1, page_count))
-
-    # Download and parse the rest of the pages
-    for i in range(len(page_links)):
-        page_link = page_links[i]
-        response = urllib.request.urlopen(page_link)
-        page_html = response.read()
-        new_posts, new_quotes, next_post_id_offset = parse_blog_page(page_html, next_post_id_offset)
-        posts.extend(new_posts)
-        quotes.extend(new_quotes)
-        print(progress_message % (i + 2, page_count))
+        quote_parser = QuoteParser()
+        parsed_quotes = quote_parser.parse(post_name, article_div)
+        quotes.extend([(post_id, quote, author, song_title) for quote, author, song_title in parsed_quotes])
     return posts, quotes
 
 
