@@ -254,6 +254,7 @@
                         if (xmlHttp.status == 200 && xmlHttp.response
                             && xmlHttp.response.items.length > 0 && xmlHttp.response.items[0].id.videoId) {
                             vm.videoUrl = "https://www.youtube.com/embed/" + xmlHttp.response.items[0].id.videoId
+                            vm.scrollToTop()
                         } else {
                             toastr.info("Sorry no video was found")
                         }
