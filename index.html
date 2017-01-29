@@ -116,7 +116,7 @@
                 <div class="row grey lighten-3 quote-row">
                     <div class="col s9">
                         <template v-for="quoteLine in quote[3].split('\n')">
-                            {{ quoteLine }}<br>
+                            <span v-html="quoteLine">{{ quoteLine }}</span><br>
                         </template>
                     </div>
                     <div class="col s3">
@@ -349,7 +349,7 @@
         }
     })
 
-    Papa.parse("./data/bens_quotes-posts.csv", {
+    Papa.parse("./data/bensquotes-posts.csv", {
         download: true,
         complete: function (results) {
             if (results.errors.length == 0) {
@@ -359,7 +359,7 @@
         }
     })
 
-    Papa.parse("./data/bens_quotes-quotes.csv", {
+    Papa.parse("./data/bensquotes-quotes.csv", {
         download: true,
         complete: function (results) {
             if (results.errors.length == 0) {
