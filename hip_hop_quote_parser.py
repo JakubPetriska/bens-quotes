@@ -130,8 +130,6 @@ class QuoteParser:
 
         while True:
             if self._in_state(QuoteParser.State.INITIAL):
-                if post_name == 'Andy':
-                    s = ''
                 self._set_state(QuoteParser.State.GATHER_QUOTE_BLOCKS)
 
             if self._in_state(QuoteParser.State.FILTER_DATA):
