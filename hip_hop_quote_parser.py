@@ -12,7 +12,7 @@ AUTHOR_PREFIXES = ['—', '–', '-', '-', '-- ', '\\\\-- ']
 MARKDOWN_ITALICS_REGEX = '^_.*_$'
 
 # Certain wrong quotes need to be weeded out at the end. These can be identified by their author.
-BLACKLISTED_AUTHORS = ['Ben Horowitz', 'Promotions']
+BLACKLISTED_AUTHORS = ['Ben Horowitz', 'Promotions', 'Performance evaluation and compensation']
 
 
 def _convert_html2text(html_tag):
@@ -23,7 +23,7 @@ def _convert_html2text(html_tag):
 
 # Matches the start of author line
 # Works for text directly obtained from Tags and for text from html2text.
-AUTHOR_LINE_START_REGEX = '^\s*>?\s*(%s)' % '|'.join(AUTHOR_PREFIXES)
+AUTHOR_LINE_START_REGEX = '^\s*>?\s*_?\s*(%s)' % '|'.join(AUTHOR_PREFIXES)
 
 
 def _is_unwanted_content(e):
@@ -154,7 +154,7 @@ class QuoteParser:
                                 # The line is last in this item, so the block is complete quote
                                 if len(text_lines) == 1:
                                     # However this block is only author
-                                    self.quote_blocks.append(self.data[last_author_item_index:i + 1])
+                                    self.quote_blocks.append(self.data[last_author_item_index + 1:i + 1])
                                 else:
                                     # This block contains the author as well as the quote
                                     self.quote_blocks.append([self.data[i]])
