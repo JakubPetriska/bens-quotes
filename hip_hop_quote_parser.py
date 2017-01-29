@@ -7,9 +7,12 @@ from bs4 import Tag
 
 NEWLINE_TAGS = ['br', 'p', 'div']
 QUOTATION_MARKS = '\'"’“”'
-AUTHOR_PREFIXES = ['—', '–', '-', '-- ', '\\\\-- ']
+AUTHOR_PREFIXES = ['—', '–', '-', '-', '-- ', '\\\\-- ']
 
 MARKDOWN_ITALICS_REGEX = '^_.*_$'
+
+# Certain wrong quotes need to be weeded out at the end. These can be identified by their author.
+BLACKLISTED_AUTHORS = ['Ben Horowitz', 'Promotions']
 
 
 def _convert_html2text(html_tag):
@@ -71,10 +74,11 @@ def _strip_quotes(string):
 
 
 def _strip_markdown_italics(string):
-    if re.match(MARKDOWN_ITALICS_REGEX, string):
-        return string[1:-1]
-    else:
-        return string
+    if string.startswith('_'):
+        string = string[1:]
+    if string.endswith('_'):
+        string = string[:-1]
+    return string
 
 
 class QuoteParser:
@@ -92,7 +96,7 @@ class QuoteParser:
         PROCESS_AND_STRIP_QUOTE_BLOCKS = 30
 
         # This state turns quote block into parsed quote. Tuple in format (quote, author, song_title).
-        PARSE_QUOTE = 50
+        PARSE_QUOTES = 50
 
         FINAL = 100
 
@@ -116,16 +120,18 @@ class QuoteParser:
         else:
             print('\tState: %s' % self.state)
 
-    def parse(self, post_name, post_excerpt_div):
+    def parse(self, post_name, article_div):
         self.state = QuoteParser.State.INITIAL
 
         self.post_name = post_name
-        self.data = [post_excerpt_div]
+        self.data = [article_div]
         self.quote_blocks = []
         self.parsed_quotes = []
 
         while True:
             if self._in_state(QuoteParser.State.INITIAL):
+                if post_name == 'Andy':
+                    s = ''
                 self._set_state(QuoteParser.State.GATHER_QUOTE_BLOCKS)
 
             if self._in_state(QuoteParser.State.FILTER_DATA):
@@ -171,9 +177,9 @@ class QuoteParser:
                     while len(quote_block) == 1:
                         quote_block = _filter_content(quote_block[0])
                     self.quote_blocks[i] = quote_block
-                self._set_state(QuoteParser.State.PARSE_QUOTE)
+                self._set_state(QuoteParser.State.PARSE_QUOTES)
 
-            elif self._in_state(QuoteParser.State.PARSE_QUOTE):
+            elif self._in_state(QuoteParser.State.PARSE_QUOTES):
                 if len(self.quote_blocks) > 0:
                     quote_block = self.quote_blocks[0]
                     self.quote_blocks = self.quote_blocks[1:]
@@ -198,41 +204,63 @@ class QuoteParser:
                     quote_block = list(map(lambda string: string.strip(), quote_block))
                     quote_block = list(filter(lambda split: split, quote_block))
 
-                    quote_lines = quote_block[:len(quote_block) + - 1]
-                    # If the last line ends with quotation mark and there is a line that begins with quotation mark
-                    # and this line is not the first then we have more than our quote.
-                    # So strip everything that is not the quote.
-                    if _ends_with_quote(quote_lines[-1]):
-                        for i in range(len(quote_lines) - 1):
-                            if _starts_with_quote(quote_lines[i]):
-                                quote_lines = quote_lines[i:]
-                                break
-                    quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
-                    quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
+                    # It is possible that last line was split into multiple lines
+                    # Find the line which contains the quote author and join it with all following lines
+                    for i in reversed(range(len(quote_block))):
+                        line = quote_block[i]
+                        if re.match(AUTHOR_LINE_START_REGEX, line):
+                            # This is the author line
+                            if i < len(quote_block) - 1:
+                                quote_block[i] = ''.join(quote_block[i:])
+                                quote_block = quote_block[:i + 1]
+                            break
 
-                    # Strip whitespace again from all lines
-                    quote_block = list(map(lambda line: line.strip(), quote_block))
+                    if len(quote_block) > 1:
+                        # Only consider quote blocks with at least 2 lines.
+                        # Otherwise it has only author line which means the block is not a quote.
 
-                    quote = '\n'.join(quote_lines)
-                    last_line = quote_block[-1]
-                    # Cut the dash or any author preceding characters from the last line
-                    author_start_match = re.match(AUTHOR_LINE_START_REGEX, last_line)
-                    if not author_start_match:
-                        self._print_error('Last line does not start with usual author prefix.')
-                    else:
-                        author_start_index = author_start_match.span()[1]
-                        last_line = last_line[author_start_index:]
-                        author_title_split = re.search(', ', last_line)
-                        if not author_title_split:
-                            # Quote has only author, no song title
-                            author = last_line
-                            song_title = None
+                        # Strip markdown from all lines
+                        quote_block = list(map(lambda quote_block_line: _strip_markdown_italics(quote_block_line),
+                                               quote_block))
+
+                        # Get body of the quote
+                        quote_lines = quote_block[:len(quote_block) - 1]
+                        # If the last line ends with quotation mark and there is a line that begins with quotation mark
+                        # and this line is not the first then we have more than our quote.
+                        # So strip everything that is not the quote.
+                        if _ends_with_quote(quote_lines[-1]):
+                            for i in range(len(quote_lines) - 1):
+                                if _starts_with_quote(quote_lines[i]):
+                                    quote_lines = quote_lines[i:]
+                                    break
+                        quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
+                        quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
+
+                        # Strip whitespace again from all lines
+                        quote_block = list(map(lambda line: line.strip(), quote_block))
+
+                        quote = '\n'.join(quote_lines)
+                        last_line = quote_block[-1]
+                        # Cut the dash or any author preceding characters from the last line
+                        author_start_match = re.match(AUTHOR_LINE_START_REGEX, last_line)
+                        if not author_start_match:
+                            self._print_error('Last line does not start with usual author prefix.')
                         else:
-                            author_title_split_span = author_title_split.span()
-                            author = last_line[:author_title_split_span[0]]
-                            song_title = _strip_markdown_italics(_strip_quotes(last_line[author_title_split_span[1]:]))
-                        self.parsed_quotes.append((quote, author, song_title))
-                    self._set_state(QuoteParser.State.PARSE_QUOTE)
+                            author_start_index = author_start_match.span()[1]
+                            last_line = last_line[author_start_index:]
+                            author_title_split = re.search(',\s*', last_line)
+                            if not author_title_split:
+                                # Quote has only author, no song title
+                                author = last_line
+                                song_title = None
+                            else:
+                                author_title_split_span = author_title_split.span()
+                                author = last_line[:author_title_split_span[0]]
+                                song_title = _strip_markdown_italics(
+                                    _strip_quotes(last_line[author_title_split_span[1]:]))
+                            if author not in BLACKLISTED_AUTHORS:
+                                self.parsed_quotes.append((quote, author, song_title))
+                    self._set_state(QuoteParser.State.PARSE_QUOTES)
                 else:
                     self._set_state(QuoteParser.State.FINAL)
 
