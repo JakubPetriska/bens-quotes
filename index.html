@@ -30,10 +30,6 @@
 
     <!-- GitHub button -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
-
-    <!-- Toaster library -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 </head>
 <body>
 <nav class="blue-grey darken-1" role="navigation">
@@ -108,10 +104,10 @@
 
             <div v-for="quote, index in sortedQuotes">
                 <div class="row quote-info-row" style="margin-bottom: 0">
-                    <div class="col s3 btn-no-style">{{ quote[0] | formatDate }}</div>
-                    <div class="col s3 btn-no-style"><a v-bind:href="quote[1]">{{ quote[2] }}</a></div>
-                    <div class="col s3 btn-no-style">{{ quote[4] }}</div>
-                    <div class="col s3 btn-no-style">{{ quote[5] }}</div>
+                    <div class="col s3">{{ quote[0] | formatDate }}</div>
+                    <div class="col s3"><a v-bind:href="quote[1]">{{ quote[2] }}</a></div>
+                    <div class="col s3">{{ quote[4] }}</div>
+                    <div class="col s3">{{ quote[5] }}</div>
                 </div>
                 <div class="row grey lighten-3 quote-row">
                     <div class="col s9">
@@ -154,16 +150,20 @@
     </div>
 </main>
 
-<footer class="page-footer blue-grey darken-1">
+<footer id="footer" class="page-footer blue-grey darken-1">
     <div class="container">
         <div class="row">
-            <div class="col l6 s12">
+            <div class="col s6">
                 <a class="github-button" href="https://github.com/JakubPetriska/BensQuotes" data-icon="octicon-star"
                    data-style="mega" data-count-href="/JakubPetriska/BensQuotes/stargazers"
                    data-count-api="/repos/JakubPetriska/BensQuotes#stargazers_count"
                    data-count-aria-label="# stargazers on GitHub" aria-label="Star JakubPetriska/BensQuotes on GitHub">
                     Star
                 </a>
+            </div>
+            <div class="col s6 white-text bug-report">
+                In case you find any bugs or missing quotes please report them
+                <span class="fake-button amber-text lighten-1" @click="showBugReportPrompt">here</span>
             </div>
         </div>
     </div>
@@ -256,7 +256,7 @@
                             vm.videoUrl = "https://www.youtube.com/embed/" + xmlHttp.response.items[0].id.videoId
                             vm.scrollToTop()
                         } else {
-                            toastr.info("Sorry no video was found")
+                            Materialize.toast('Sorry no video was found', 4000)
                         }
                     }
                     vm.loadedVideoQuoteIndex = -1
@@ -346,6 +346,18 @@
         filters: {
             formatDate: function (value) {
                 return MONTH_NAMES[value.getMonth()] + " " + value.getDate() + ", " + value.getFullYear()
+            }
+        }
+    })
+
+    var footerVm = new Vue({
+        el: "#footer",
+        data: {
+            bugReportEmail: 'jakubpetriska91@gmail.com'
+        },
+        methods: {
+            showBugReportPrompt: function () {
+                window.prompt("Please send your bug report to the following email address:", this.bugReportEmail);
             }
         }
     })

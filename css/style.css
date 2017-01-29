@@ -42,6 +42,17 @@
 .btn-no-style {
     background: none;
     border: none;
+    margin: 0;
+    padding: 0;
+}
+
+.fake-button {
+    cursor: pointer;
+    cursor: hand;
+}
+
+.bug-report {
+    text-align: right;
 }
 
 /* Keeps footer on the bottom */
