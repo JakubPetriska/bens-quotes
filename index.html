@@ -263,6 +263,7 @@
                         if (xmlHttp.status == 200 && xmlHttp.response
                             && xmlHttp.response.items.length > 0 && xmlHttp.response.items[0].id.videoId) {
                             vm.videoUrl = "https://www.youtube.com/embed/" + xmlHttp.response.items[0].id.videoId
+                                + '?autoplay=1'
                             vm.scrollToTop()
                         } else {
                             Materialize.toast('Sorry no video was found', 4000)
