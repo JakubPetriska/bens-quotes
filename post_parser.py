@@ -7,9 +7,12 @@ from bs4 import Tag
 
 NEWLINE_TAGS = ['br', 'p', 'div']
 QUOTATION_MARKS = '\'"’“”'
-AUTHOR_PREFIXES = ['—', '–', '-', '-- ', '\\\\-- ']
+AUTHOR_PREFIXES = ['—', '–', '-', '-', '-- ', '\\\\-- ']
 
 MARKDOWN_ITALICS_REGEX = '^_.*_$'
+
+# Certain wrong quotes need to be weeded out at the end. These can be identified by their author.
+BLACKLISTED_AUTHORS = ['Ben Horowitz', 'Promotions', 'Performance evaluation and compensation']
 
 
 def _convert_html2text(html_tag):
@@ -20,7 +23,7 @@ def _convert_html2text(html_tag):
 
 # Matches the start of author line
 # Works for text directly obtained from Tags and for text from html2text.
-AUTHOR_LINE_START_REGEX = '^\s*>?\s*(%s)' % '|'.join(AUTHOR_PREFIXES)
+AUTHOR_LINE_START_REGEX = '^\s*>?\s*_?\s*(%s)' % '|'.join(AUTHOR_PREFIXES)
 
 
 def _is_unwanted_content(e):
@@ -72,14 +75,16 @@ def _strip_quotes(string):
 
 
 def _strip_markdown_italics(string):
-    if re.match(MARKDOWN_ITALICS_REGEX, string):
-        return string[1:-1]
-    else:
-        return string
+    if string.startswith('_'):
+        string = string[1:]
+    if string.endswith('_'):
+        string = string[:-1]
+    return string
 
 
 class PostParser:
     """Parser that accepts beautifulsoup Tag object and collects all quotes from it."""
+
     class State(Enum):
         INITIAL = 1
 
@@ -94,7 +99,7 @@ class PostParser:
         PROCESS_AND_STRIP_QUOTE_BLOCKS = 30
 
         # This state turns quote block into parsed quote. Tuple in format (quote, author, song_title).
-        PARSE_QUOTE = 50
+        PARSE_QUOTES = 50
 
         FINAL = 100
 
@@ -118,17 +123,17 @@ class PostParser:
         else:
             print('\tState: %s' % self.state)
 
-    def parse(self, post_name, post_tag):
+    def parse(self, post_name, content_tag):
         """Parse beautifulsoup Tag and collect all it's quotes.
 
         :param post_name: Name of the post for identification in logs.
-        :param post_tag: beautifulsoup Tag containg the excerpt of the post.
+        :param content_tag: beautifulsoup Tag containing the content to be parsed.
         :return: The parsed quotes.
         """
         self.state = PostParser.State.INITIAL
 
         self.post_name = post_name
-        self.data = [post_tag]
+        self.data = [content_tag]
         self.quote_blocks = []
         self.parsed_quotes = []
 
@@ -158,7 +163,7 @@ class PostParser:
                                 # The line is last in this item, so the block is complete quote
                                 if len(text_lines) == 1:
                                     # However this block is only author
-                                    self.quote_blocks.append(self.data[last_author_item_index:i + 1])
+                                    self.quote_blocks.append(self.data[last_author_item_index + 1:i + 1])
                                 else:
                                     # This block contains the author as well as the quote
                                     self.quote_blocks.append([self.data[i]])
@@ -179,9 +184,9 @@ class PostParser:
                     while len(quote_block) == 1:
                         quote_block = _filter_content(quote_block[0])
                     self.quote_blocks[i] = quote_block
-                self._set_state(PostParser.State.PARSE_QUOTE)
+                self._set_state(PostParser.State.PARSE_QUOTES)
 
-            elif self._in_state(PostParser.State.PARSE_QUOTE):
+            elif self._in_state(PostParser.State.PARSE_QUOTES):
                 if len(self.quote_blocks) > 0:
                     quote_block = self.quote_blocks[0]
                     self.quote_blocks = self.quote_blocks[1:]
@@ -206,41 +211,63 @@ class PostParser:
                     quote_block = list(map(lambda string: string.strip(), quote_block))
                     quote_block = list(filter(lambda split: split, quote_block))
 
-                    quote_lines = quote_block[:len(quote_block) + - 1]
-                    # If the last line ends with quotation mark and there is a line that begins with quotation mark
-                    # and this line is not the first then we have more than our quote.
-                    # So strip everything that is not the quote.
-                    if _ends_with_quote(quote_lines[-1]):
-                        for i in range(len(quote_lines) - 1):
-                            if _starts_with_quote(quote_lines[i]):
-                                quote_lines = quote_lines[i:]
-                                break
-                    quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
-                    quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
+                    # It is possible that last line was split into multiple lines
+                    # Find the line which contains the quote author and join it with all following lines
+                    for i in reversed(range(len(quote_block))):
+                        line = quote_block[i]
+                        if re.match(AUTHOR_LINE_START_REGEX, line):
+                            # This is the author line
+                            if i < len(quote_block) - 1:
+                                quote_block[i] = ''.join(quote_block[i:])
+                                quote_block = quote_block[:i + 1]
+                            break
 
-                    # Strip whitespace again from all lines
-                    quote_block = list(map(lambda line: line.strip(), quote_block))
+                    if len(quote_block) > 1:
+                        # Only consider quote blocks with at least 2 lines.
+                        # Otherwise it has only author line which means the block is not a quote.
 
-                    quote = '\n'.join(quote_lines)
-                    last_line = quote_block[-1]
-                    # Cut the dash or any author preceding characters from the last line
-                    author_start_match = re.match(AUTHOR_LINE_START_REGEX, last_line)
-                    if not author_start_match:
-                        self._print_error('Last line does not start with usual author prefix.')
-                    else:
-                        author_start_index = author_start_match.span()[1]
-                        last_line = last_line[author_start_index:]
-                        author_title_split = re.search(', ', last_line)
-                        if not author_title_split:
-                            # Quote has only author, no song title
-                            author = last_line
-                            song_title = None
+                        # Strip markdown from all lines
+                        quote_block = list(map(lambda quote_block_line: _strip_markdown_italics(quote_block_line),
+                                               quote_block))
+
+                        # Get body of the quote
+                        quote_lines = quote_block[:len(quote_block) - 1]
+                        # If the last line ends with quotation mark and there is a line that begins with quotation mark
+                        # and this line is not the first then we have more than our quote.
+                        # So strip everything that is not the quote.
+                        if _ends_with_quote(quote_lines[-1]):
+                            for i in range(len(quote_lines) - 1):
+                                if _starts_with_quote(quote_lines[i]):
+                                    quote_lines = quote_lines[i:]
+                                    break
+                        quote_lines[0] = _strip_quotes_beginning(quote_lines[0])
+                        quote_lines[-1] = _strip_quotes_end(quote_lines[-1])
+
+                        # Strip whitespace again from all lines
+                        quote_block = list(map(lambda line: line.strip(), quote_block))
+
+                        quote = '\n'.join(quote_lines)
+                        last_line = quote_block[-1]
+                        # Cut the dash or any author preceding characters from the last line
+                        author_start_match = re.match(AUTHOR_LINE_START_REGEX, last_line)
+                        if not author_start_match:
+                            self._print_error('Last line does not start with usual author prefix.')
                         else:
-                            author_title_split_span = author_title_split.span()
-                            author = last_line[:author_title_split_span[0]]
-                            song_title = _strip_markdown_italics(_strip_quotes(last_line[author_title_split_span[1]:]))
-                        self.parsed_quotes.append((quote, author, song_title))
-                    self._set_state(PostParser.State.PARSE_QUOTE)
+                            author_start_index = author_start_match.span()[1]
+                            last_line = last_line[author_start_index:]
+                            author_title_split = re.search(',\s*', last_line)
+                            if not author_title_split:
+                                # Quote has only author, no song title
+                                author = last_line
+                                song_title = None
+                            else:
+                                author_title_split_span = author_title_split.span()
+                                author = last_line[:author_title_split_span[0]]
+                                song_title = _strip_markdown_italics(
+                                    _strip_quotes(last_line[author_title_split_span[1]:]))
+                            if author not in BLACKLISTED_AUTHORS:
+                                self.parsed_quotes.append((quote, author, song_title))
+                    self._set_state(PostParser.State.PARSE_QUOTES)
                 else:
                     self._set_state(PostParser.State.FINAL)
 
