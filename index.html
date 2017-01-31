@@ -110,42 +110,47 @@
                     <div class="col s3">{{ quote[5] }}</div>
                 </div>
                 <div class="row grey lighten-3 quote-row">
-                    <div class="col s9">
+                    <div class="col s6">
                         <template v-for="quoteLine in quote[3].split('\n')">
                             <span v-html="quoteLine">{{ quoteLine }}</span><br>
                         </template>
                     </div>
-                    <div class="col s3">
+                    <div class="col s6">
                         <template v-if="quote[5].trim()">
                             <template v-if="loadedVideoQuoteIndex == index">
-                                <div v-if="videoLoading"
-                                     class="preloader-wrapper small active">
-                                    <div class="spinner-layer spinner-blue-grey-only">
-                                        <div class="circle-clipper left">
-                                            <div class="circle"></div>
-                                        </div>
-                                        <div class="gap-patch">
-                                            <div class="circle"></div>
-                                        </div>
-                                        <div class="circle-clipper right">
-                                            <div class="circle"></div>
+                                <template v-if="videoLoading">
+                                    <div class="col s6"></div>
+                                    <div class="col s6">
+                                        <div class="preloader-wrapper small active">
+                                            <div class="spinner-layer spinner-blue-grey-only">
+                                                <div class="circle-clipper left">
+                                                    <div class="circle"></div>
+                                                </div>
+                                                <div class="gap-patch">
+                                                    <div class="circle"></div>
+                                                </div>
+                                                <div class="circle-clipper right">
+                                                    <div class="circle"></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div v-else
-                                     class="space-medium ">
-                                    <iframe v-if="videoUrl"
-                                            class="video-player"
-                                            width="560" height="315"
-                                            :src="videoUrl"
-                                            frameborder="0" allowfullscreen>
+                                </template>
+                                <div v-else class="video-wrapper">
+                                    <iframe v-if="videoUrl" :src="videoUrl" frameborder="0" allowfullscreen
+                                    class="video-player">
                                     </iframe>
                                 </div>
                             </template>
-                            <a v-else @click="playSong(index)" class="waves-effect waves-light btn blue-grey darken-1">
-                                <i class="material-icons right">play_arrow</i>
-                                play
-                            </a>
+                            <template v-else>
+                                <div class="col s6"></div>
+                                <div class="col s6">
+                                    <a @click="playSong(index)" class="waves-effect waves-light btn blue-grey darken-1">
+                                        <i class="material-icons right">play_arrow</i>
+                                        play
+                                    </a>
+                                </div>
+                            </template>
                         </template>
                     </div>
                 </div>
@@ -268,7 +273,6 @@
                             && xmlHttp.response.items.length > 0 && xmlHttp.response.items[0].id.videoId) {
                             vm.videoUrl = "https://www.youtube.com/embed/" + xmlHttp.response.items[0].id.videoId
                                 + '?autoplay=1'
-                            vm.scrollToTop()
                         } else {
                             Materialize.toast('Sorry no video was found', 4000)
                             vm.loadedVideoQuoteIndex = -1
