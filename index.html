@@ -138,7 +138,7 @@
                                 </template>
                                 <div v-else class="video-wrapper">
                                     <iframe v-if="videoUrl" :src="videoUrl" frameborder="0" allowfullscreen
-                                    class="video-player">
+                                            class="video-player">
                                     </iframe>
                                 </div>
                             </template>
@@ -286,20 +286,43 @@
             },
             scrollToTop: function () {
                 $("html, body").animate({scrollTop: 0}, "fast")
+            },
+            closeVideo: function () {
+                this.videoLoading = false
+                this.loadedVideoQuoteIndex = -1
+                if (this.youtubeRequest) {
+                    this.youtubeRequest.abort()
+                    this.youtubeRequest = null
+                }
             }
         },
         watch: {
             'searchParams.postName': function () {
                 this.updateCheckAll()
+                if (this.searchQuery) {
+                    this.closeVideo()
+                }
             },
             'searchParams.quoteAuthor': function () {
                 this.updateCheckAll()
+                if (this.searchQuery) {
+                    this.closeVideo()
+                }
             },
             'searchParams.songTitle': function () {
                 this.updateCheckAll()
+                if (this.searchQuery) {
+                    this.closeVideo()
+                }
             },
             'searchParams.quotedText': function () {
                 this.updateCheckAll()
+                if (this.searchQuery) {
+                    this.closeVideo()
+                }
+            },
+            searchQuery: function () {
+                this.closeVideo()
             }
         },
         computed: {
