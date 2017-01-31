@@ -74,16 +74,6 @@
             <input type="checkbox" id="search-check-all" v-model="searchParamsCheckAll" @click="toggleCheckAll">
             <label for="search-check-all">Check all</label>
         </div>
-
-        <div class="space-medium ">
-            <iframe v-if="videoUrl"
-                    class="video-player"
-                    width="560" height="315"
-                    :src="videoUrl"
-                    frameborder="0" allowfullscreen>
-            </iframe>
-        </div>
-
         <div class="space-medium">
             <div class="row"
                  style="margin-bottom: 0">
@@ -126,20 +116,31 @@
                     </div>
                     <div class="col s3">
                         <template v-if="quote[5].trim()">
-                            <div v-if="loadedVideoQuoteIndex == index"
-                                 class="preloader-wrapper small active">
-                                <div class="spinner-layer spinner-blue-grey-only">
-                                    <div class="circle-clipper left">
-                                        <div class="circle"></div>
-                                    </div>
-                                    <div class="gap-patch">
-                                        <div class="circle"></div>
-                                    </div>
-                                    <div class="circle-clipper right">
-                                        <div class="circle"></div>
+                            <template v-if="loadedVideoQuoteIndex == index">
+                                <div v-if="videoLoading"
+                                     class="preloader-wrapper small active">
+                                    <div class="spinner-layer spinner-blue-grey-only">
+                                        <div class="circle-clipper left">
+                                            <div class="circle"></div>
+                                        </div>
+                                        <div class="gap-patch">
+                                            <div class="circle"></div>
+                                        </div>
+                                        <div class="circle-clipper right">
+                                            <div class="circle"></div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                                <div v-else
+                                     class="space-medium ">
+                                    <iframe v-if="videoUrl"
+                                            class="video-player"
+                                            width="560" height="315"
+                                            :src="videoUrl"
+                                            frameborder="0" allowfullscreen>
+                                    </iframe>
+                                </div>
+                            </template>
                             <a v-else @click="playSong(index)" class="waves-effect waves-light btn blue-grey darken-1">
                                 <i class="material-icons right">play_arrow</i>
                                 play
@@ -212,6 +213,7 @@
             dataTableItems: DATA_TABLE_ITEMS,
             sortCriterion: DATA_TABLE_ITEMS[0],
             sortDirection: -1,
+            videoLoading: false,
             loadedVideoQuoteIndex: -1,
             youtubeRequest: null,
             videoUrl: null
@@ -250,6 +252,7 @@
                 }
 
                 this.loadedVideoQuoteIndex = quoteIndex
+                this.videoLoading = true
 
                 var quote = this.sortedQuotes[quoteIndex]
                 var author = quote[4].toLowerCase()
@@ -266,9 +269,10 @@
                             vm.scrollToTop()
                         } else {
                             Materialize.toast('Sorry no video was found', 4000)
+                            vm.loadedVideoQuoteIndex = -1
                         }
                     }
-                    vm.loadedVideoQuoteIndex = -1
+                    vm.videoLoading = false
                 }
                 xmlHttp.open("GET", getYoutubeSearchUrl(author + " " + songTitle), true)
                 xmlHttp.send();
